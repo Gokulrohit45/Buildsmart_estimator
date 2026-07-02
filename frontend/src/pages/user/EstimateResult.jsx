@@ -1,0 +1,739 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Layout from '../../components/layout/Layout';
+import { formatINR } from '../../services/api';
+
+const CATEGORIES = ['Civil Works', 'Labour', 'Flooring', 'Painting', 'Electrical', 'Plumbing', 'Interiors'];
+
+const CAT_COLORS = {
+  'Civil Works': 'badge-blue',
+  'Labour': 'badge-gray',
+  'Flooring': 'badge-teal',
+  'Painting': 'badge-amber',
+  'Electrical': 'badge-amber',
+  'Plumbing': 'badge-blue',
+  'Interiors': 'badge-green',
+};
+
+const CAT_PALETTE = {
+  'Civil Works':  { bar: 'linear-gradient(90deg,#0f766e,#14b8a6)', hdr: 'linear-gradient(90deg,rgba(15,118,110,0.13),rgba(20,184,166,0.06))', accent: '#0f766e', text: '#0f766e' },
+  'Labour':       { bar: 'linear-gradient(90deg,#2563eb,#60a5fa)', hdr: 'linear-gradient(90deg,rgba(37,99,235,0.13),rgba(96,165,250,0.06))', accent: '#2563eb', text: '#2563eb' },
+  'Flooring':     { bar: 'linear-gradient(90deg,#d97706,#fbbf24)', hdr: 'linear-gradient(90deg,rgba(217,119,6,0.13),rgba(251,191,36,0.06))', accent: '#d97706', text: '#b45309' },
+  'Painting':     { bar: 'linear-gradient(90deg,#ea580c,#fb923c)', hdr: 'linear-gradient(90deg,rgba(234,88,12,0.13),rgba(251,146,60,0.06))', accent: '#ea580c', text: '#ea580c' },
+  'Electrical':   { bar: 'linear-gradient(90deg,#ca8a04,#facc15)', hdr: 'linear-gradient(90deg,rgba(202,138,4,0.13),rgba(250,204,21,0.06))', accent: '#ca8a04', text: '#92400e' },
+  'Plumbing':     { bar: 'linear-gradient(90deg,#4f46e5,#818cf8)', hdr: 'linear-gradient(90deg,rgba(79,70,229,0.13),rgba(129,140,248,0.06))', accent: '#4f46e5', text: '#4f46e5' },
+  'Interiors':    { bar: 'linear-gradient(90deg,#16a34a,#4ade80)', hdr: 'linear-gradient(90deg,rgba(22,163,74,0.13),rgba(74,222,128,0.06))', accent: '#16a34a', text: '#16a34a' },
+};
+
+const CAT_BAR_DATA = [
+  { label: 'Civil Works (Materials)', cat: 'Civil Works',  val: (c) => c.civilSubtotal },
+  { label: 'Labour',                  cat: 'Labour',       val: (c) => c.labourSubtotal },
+  { label: 'Flooring',                cat: 'Flooring',     val: (c) => c.flooringSubtotal },
+  { label: 'Painting',                cat: 'Painting',     val: (c) => c.paintingSubtotal },
+  { label: 'Electrical',              cat: 'Electrical',   val: (c) => c.electricalSubtotal },
+  { label: 'Plumbing',                cat: 'Plumbing',     val: (c) => c.plumbingSubtotal },
+  { label: 'Interiors',               cat: 'Interiors',    val: (c) => c.interiorSubtotal },
+];
+
+const REC_GLOW = {
+  tip:  { border: '#14b8a6', bg: 'rgba(20,184,166,0.06)',  shadow: '0 0 0 1px rgba(20,184,166,0.25), -4px 0 0 0 #14b8a6' },
+  warn: { border: '#f59e0b', bg: 'rgba(245,158,11,0.06)',  shadow: '0 0 0 1px rgba(245,158,11,0.25), -4px 0 0 0 #f59e0b' },
+  info: { border: '#3b82f6', bg: 'rgba(59,130,246,0.06)',  shadow: '0 0 0 1px rgba(59,130,246,0.25), -4px 0 0 0 #3b82f6' },
+};
+
+export default function EstimateResult() {
+  const navigate = useNavigate();
+  const [result, setResult] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('bs_estimate');
+    if (stored) setResult(JSON.parse(stored));
+    else navigate('/new-estimate');
+  }, [navigate]);
+
+  if (!result) return null;
+
+  const summary = result.summary || {};
+  const costs = result.costs || {};
+  const quantities = result.quantities || {};
+  const duration = result.duration || {};
+  const recommendations = result.recommendations || [];
+  const boqItems = result.boqItems || [];
+  const inputData = result.input || {};
+
+  const handlePrint = () => window.print();
+
+  const handleExportExcel = () => {
+    if (!result || !result.estimate_id) {
+      alert("Estimate ID not found. Save the estimate first.");
+      return;
+    }
+    const token = localStorage.getItem('bs_token');
+    const url = `http://localhost:5000/api/estimates/${result.estimate_id}/export/excel`;
+    
+    fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to export Excel sheet");
+      return res.blob();
+    })
+    .then(blob => {
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `BOQ_Estimate_${summary.customerName || 'Project'}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    })
+    .catch(err => alert(err.message));
+  };
+
+  const grouped = CATEGORIES.reduce((acc, cat) => {
+    acc[cat] = boqItems.filter((item) => item.category === cat);
+    return acc;
+  }, {});
+
+  const tabs = [
+    { id: 'overview',        label: '📐 Key Quantities' },
+    { id: 'boq',             label: '📋 Bill of Quantities (BOQ)' },
+    { id: 'recommendations', label: `🤖 AI Recommendations (${(recommendations || []).length})` },
+  ];
+
+  return (
+    <Layout role="builder">
+      {/* ══════════════════════════════════════════════
+          CSS @media print OVERRIDES
+      ══════════════════════════════════════════════ */}
+      <style>{`
+        /* Print layout adjustments */
+        @media print {
+          body, html, #root, .app-layout, .main-content, .page-body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-shadow: none !important;
+            transform: none !important;
+          }
+          
+          /* Hide non-printable items */
+          .app-sidebar,
+          .sidebar,
+          .app-header,
+          .header,
+          .print-hide,
+          .web-hero-banner,
+          button {
+            display: none !important;
+          }
+
+          /* Force print-only sections visible */
+          .print-only-header {
+            display: block !important;
+          }
+          
+          /* Force rendering of all tab-panels in one consolidated PDF document */
+          .tab-panel {
+            display: block !important;
+            opacity: 1 !important;
+            page-break-after: always !important;
+            margin-bottom: 30px !important;
+          }
+          .tab-panel:last-child {
+            page-break-after: avoid !important;
+          }
+
+          /* Format overview layout */
+          .overview-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1.5fr !important;
+            gap: 16px !important;
+            page-break-inside: avoid !important;
+          }
+          
+          /* Remove glowing shadows from print cards */
+          .card {
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            page-break-inside: avoid !important;
+          }
+          
+          /* Table prints cleanly with borders and wrap control */
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          th, td {
+            border: 1px solid #94a3b8 !important;
+            padding: 6px 10px !important;
+            font-size: 11px !important;
+            color: #000 !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+          }
+          
+          .overview-total {
+            padding-top: 10px !important;
+          }
+
+          @page {
+            size: A4 portrait;
+            margin: 1.5cm;
+          }
+        }
+        
+        @media screen {
+          .print-only-header {
+            display: none !important;
+          }
+          .web-hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      {/* ══════════════════════════════════════════════
+          PRINT-ONLY PROFESSIONAL HEADER
+      ══════════════════════════════════════════════ */}
+      <div className="print-only-header" style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2.5px solid #0f766e', paddingBottom: '16px', marginBottom: '24px' }}>
+          <div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f766e', letterSpacing: '-0.5px', textTransform: 'uppercase' }}>
+              {inputData.builder_company_name || 'BuildSmart Estimator'}
+            </div>
+            <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px', fontWeight: 500 }}>
+              Professional Construction Cost Estimate &amp; Quotation
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '12px', color: '#334155', lineHeight: 1.5 }}>
+            <div><strong>Quotation No:</strong> {inputData.quotation_number || 'QTN-TEMP'}</div>
+            <div><strong>Date:</strong> {inputData.quotation_date || new Date().toLocaleDateString('en-IN')}</div>
+            <div><strong>Validity:</strong> 30 Days from date of issue</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', fontSize: '13px', lineHeight: 1.6 }}>
+          <div style={{ border: '1px solid #cbd5e1', padding: '14px', borderRadius: '8px', background: '#f8fafc' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#0f766e', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '8px' }}>CLIENT DETAILS</div>
+            <div><strong>Customer Name:</strong> {inputData.customer_name || summary.customerName}</div>
+            <div><strong>Mobile Number:</strong> {inputData.customer_mobile || '—'}</div>
+            <div><strong>Email Address:</strong> {inputData.customer_email || '—'}</div>
+            <div><strong>Project Site Address:</strong> {inputData.project_address || '—'}</div>
+          </div>
+          <div style={{ border: '1px solid #cbd5e1', padding: '14px', borderRadius: '8px', background: '#f8fafc' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#0f766e', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '8px' }}>PROJECT SPECIFICATIONS</div>
+            <div><strong>Project Name:</strong> {inputData.project_name || '—'}</div>
+            <div><strong>Built-up Area:</strong> {summary.totalSqft.toLocaleString()} Sqft</div>
+            <div><strong>Building Type:</strong> {summary.buildingType}</div>
+            <div><strong>Structure Type:</strong> {inputData.structure_type || 'RCC Frame'}</div>
+            <div><strong>Soil Condition:</strong> {inputData.soil_type || 'Normal Soil'}</div>
+            <div><strong>Quality Grade:</strong> {summary.quality}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          WEB-ONLY HERO BANNER
+      ══════════════════════════════════════════════ */}
+      <div className="web-hero-banner" style={{
+        background: 'linear-gradient(135deg, #0b1120 0%, #0f2027 50%, rgba(15,118,110,0.2) 100%)',
+        borderRadius: '16px',
+        padding: '28px 36px',
+        marginBottom: '28px',
+        position: 'relative',
+        overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+      }}>
+        {/* decorative orbs */}
+        <div style={{ position:'absolute', top:'-40px', right:'-40px', width:'200px', height:'200px',
+          borderRadius:'50%', background:'radial-gradient(circle, rgba(20,184,166,0.18) 0%, transparent 70%)', pointerEvents:'none' }} />
+        <div style={{ position:'absolute', bottom:'-30px', left:'35%', width:'160px', height:'160px',
+          borderRadius:'50%', background:'radial-gradient(circle, rgba(8,145,178,0.13) 0%, transparent 70%)', pointerEvents:'none' }} />
+
+        {/* Top row */}
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'24px', flexWrap:'wrap' }}>
+          {/* Left: project info */}
+          <div>
+            <div style={{ fontSize:'11px', fontWeight:600, letterSpacing:'1.5px', textTransform:'uppercase',
+              color:'#14b8a6', marginBottom:'6px' }}>Estimate Result</div>
+            <div style={{ fontSize:'24px', fontWeight:700, color:'#ffffff', lineHeight:1.2, marginBottom:'14px' }}>
+              {summary.customerName}
+            </div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+              {[
+                { icon: '📍', text: summary.location },
+                { icon: '🏗', text: summary.buildingType },
+                { icon: '📐', text: `${summary.totalSqft.toLocaleString()} sqft` },
+                { icon: '⭐', text: summary.quality },
+              ].map(({ icon, text }) => (
+                <span key={text} style={{
+                  display:'inline-flex', alignItems:'center', gap:'5px',
+                  padding:'4px 12px', borderRadius:'99px',
+                  background:'rgba(20,184,166,0.12)', border:'1px solid rgba(20,184,166,0.28)',
+                  color:'#99f6e4', fontSize:'12px', fontWeight:500,
+                }}>
+                  {icon} {text}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: action buttons */}
+          <div style={{ display:'flex', gap:'10px', alignItems:'center', flexShrink:0 }}>
+            <button
+              onClick={() => navigate('/new-estimate')}
+              style={{
+                background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.18)',
+                color:'#e2e8f0', borderRadius:'10px', padding:'9px 18px',
+                fontSize:'13px', fontWeight:600, cursor:'pointer',
+                display:'inline-flex', alignItems:'center', gap:'7px',
+                transition:'all 0.2s',
+              }}
+              onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.15)'}
+              onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.08)'}
+            >
+              ✏️ Edit Inputs
+            </button>
+            <button
+              onClick={handlePrint}
+              style={{
+                background:'rgba(14,165,233,0.15)', border:'1px solid rgba(14,165,233,0.35)',
+                color:'#7dd3fc', borderRadius:'10px', padding:'9px 18px',
+                fontSize:'13px', fontWeight:600, cursor:'pointer',
+                display:'inline-flex', alignItems:'center', gap:'7px',
+                transition:'all 0.2s',
+              }}
+              onMouseOver={e => e.currentTarget.style.background='rgba(14,165,233,0.28)'}
+              onMouseOut={e => e.currentTarget.style.background='rgba(14,165,233,0.15)'}
+            >
+              🖨️ Print / PDF
+            </button>
+            <button
+              onClick={handleExportExcel}
+              style={{
+                background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)',
+                border:'none', color:'#ffffff', borderRadius:'10px', padding:'9px 20px',
+                fontSize:'13px', fontWeight:700, cursor:'pointer',
+                display:'inline-flex', alignItems:'center', gap:'7px',
+                boxShadow:'0 4px 14px rgba(15,118,110,0.45)',
+                transition:'all 0.2s',
+              }}
+              onMouseOver={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(15,118,110,0.6)'; }}
+              onMouseOut={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='0 4px 14px rgba(15,118,110,0.45)'; }}
+            >
+              📤 Export Excel
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom row: quick summary values */}
+        <div style={{
+          display:'flex', flexWrap:'wrap', gap:'12px',
+          marginTop:'24px', paddingTop:'20px',
+          borderTop:'1px solid rgba(255,255,255,0.08)',
+        }}>
+          {[
+            { label:'Grand Total',  value: formatINR(costs.grandTotal),          icon:'💰', color:'#34d399' },
+            { label:'Duration',     value: `${duration.min}–${duration.max} mo`, icon:'📅', color:'#60a5fa' },
+            { label:'Cost / Sqft',  value: formatINR(Math.round(costs.grandTotal / summary.totalSqft)), icon:'📊', color:'#f472b6' },
+            { label:'Quality Tier', value: summary.quality,                      icon:'⭐', color:'#fbbf24' },
+          ].map(({ label, value, icon, color }) => (
+            <div key={label} style={{
+              display:'flex', alignItems:'center', gap:'10px',
+              padding:'10px 18px', borderRadius:'12px',
+              background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.10)',
+              backdropFilter:'blur(8px)', flex:'1 1 auto', minWidth:'150px',
+            }}>
+              <span style={{ fontSize:'18px' }}>{icon}</span>
+              <div>
+                <div style={{ fontSize:'10px', color:'rgba(255,255,255,0.45)', fontWeight:500,
+                  letterSpacing:'0.8px', textTransform:'uppercase' }}>{label}</div>
+                <div style={{ fontSize:'15px', fontWeight:700, color, marginTop:'1px' }}>{value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          OVERVIEW ROW
+      ══════════════════════════════════════════════ */}
+      <div className="overview-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '24px' }}>
+        {/* Grand Total Card */}
+        <div className="card" style={{
+          overflow:'hidden', position:'relative',
+          background:'radial-gradient(ellipse at top left, rgba(15,118,110,0.10) 0%, #ffffff 60%)',
+          border:'1px solid rgba(15,118,110,0.18)',
+        }}>
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:'4px',
+            background:'linear-gradient(90deg,#0f766e,#0891b2)' }} />
+          <div className="overview-total" style={{ paddingTop:'22px' }}>
+            <div className="overview-total-label" style={{ color:'var(--color-gray-500)', fontWeight:600,
+              fontSize:'11px', letterSpacing:'1px', textTransform:'uppercase' }}>Grand Total Estimate</div>
+            <div style={{
+              fontSize:'42px', fontWeight:800, lineHeight:1.1, marginTop:'6px', marginBottom:'4px',
+              background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)',
+              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text',
+            }}>
+              {formatINR(costs.grandTotal)}
+            </div>
+            <div className="overview-total-sub" style={{ color:'var(--color-gray-500)', fontSize:'12px' }}>
+              Includes {costs.contingencyPct ?? result.contingency_pct ?? 5}% contingency ({formatINR(costs.contingency ?? result.contingency_amount ?? 0)})
+            </div>
+          </div>
+          <div className="overview-breakdown" style={{ borderTop:'1px solid var(--color-gray-100)', paddingTop:'12px' }}>
+            <div className="breakdown-item">
+              <div className="breakdown-label">Subtotal</div>
+              <div className="breakdown-val">{formatINR(costs.subtotal)}</div>
+            </div>
+            <div className="breakdown-item">
+              <div className="breakdown-label">Contingency</div>
+              <div className="breakdown-val accent">{formatINR(costs.contingency ?? result.contingency_amount ?? 0)}</div>
+            </div>
+            <div className="breakdown-item">
+              <div className="breakdown-label">Cost / Sqft</div>
+              <div className="breakdown-val">{formatINR(Math.round(costs.grandTotal / summary.totalSqft))}</div>
+            </div>
+            <div className="breakdown-item">
+              <div className="breakdown-val-full" style={{ gridColumn: 'span 2', fontSize: '11px', color: 'var(--color-gray-500)', marginTop: '4px' }}>
+                Estimated Project Duration: {duration.min}–{duration.max} months
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Category Breakdown */}
+        <div className="card" style={{ overflow:'hidden' }}>
+          <div className="card-header" style={{
+            background:'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            borderBottom:'1px solid var(--color-gray-100)',
+          }}>
+            <div className="card-title">Cost by Category</div>
+          </div>
+          <div className="card-body p-0" style={{ padding: 0 }}>
+            {CAT_BAR_DATA.map(({ label, cat, val }) => {
+              const v = val(costs);
+              const pct = costs.subtotal > 0 ? Math.round((v / costs.subtotal) * 100) : 0;
+              const palette = CAT_PALETTE[cat] || CAT_PALETTE['Civil Works'];
+              return (
+                <div key={label} style={{ padding: '10px 22px', borderBottom: '1px solid var(--color-gray-100)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <span style={{ fontSize:'12px', fontWeight:600, color:'var(--color-gray-700)',
+                      display:'flex', alignItems:'center', gap:'6px' }}>
+                      <span style={{ width:'8px', height:'8px', borderRadius:'50%',
+                        background: palette.accent, display:'inline-block', flexShrink:0 }} />
+                      {label}
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-gray-900)' }}>
+                      {formatINR(v)}{' '}
+                      <span style={{ color: 'var(--color-gray-400)', fontWeight: 400 }}>({pct}%)</span>
+                    </span>
+                  </div>
+                  <div className="progress-bar-bg">
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${pct}%`,
+                        background: palette.bar,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          TABS NAV (SCREEN ONLY)
+      ══════════════════════════════════════════════ */}
+      <div className="print-hide" style={{
+        display:'flex', gap:'4px',
+        borderBottom:'2px solid var(--color-gray-100)',
+        marginBottom:'20px',
+      }}>
+        {tabs.map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                padding:'11px 20px', fontSize:'13px',
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? 'var(--color-primary)' : 'var(--color-gray-500)',
+                background: isActive ? 'rgba(15,118,110,0.06)' : 'transparent',
+                border:'none', borderRadius:'8px 8px 0 0', cursor:'pointer',
+                borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                marginBottom:'-2px', transition:'all 0.2s',
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          TAB PANELS (Consolidated for Print, Clickable for Web)
+      ══════════════════════════════════════════════ */}
+
+      {/* PANEL 1: Key Quantities */}
+      <div className={`tab-panel ${activeTab === 'overview' ? 'web-visible' : 'web-hidden'}`}>
+        <div className="card" style={{ overflow:'hidden' }}>
+          <div className="card-header" style={{
+            background:'linear-gradient(135deg, #f8fafc 0%, #f0fdf4 100%)',
+            borderBottom:'1px solid var(--color-gray-100)',
+          }}>
+            <div className="card-title">Material Quantities Summary</div>
+            <div className="card-subtitle">Calculated using standard civil engineering thumb rules</div>
+          </div>
+          <div className="p-0">
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: '0 0 12px 12px' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td className="td-bold">Cement ({result.input?.cementBrand || 'Standard Brand'})</td><td className="td-mono">{(quantities.cementBags || 0).toLocaleString()}</td><td>Bags (50kg)</td><td className="text-muted">Quality factor applied</td></tr>
+                  <tr><td className="td-bold">Steel ({result.input?.steelGrade || 'Fe500'})</td><td className="td-mono">{(quantities.steelKg || 0).toLocaleString()}</td><td>Kg</td><td className="text-muted">TMT bars, quality factor applied</td></tr>
+                  <tr><td className="td-bold">Sand ({result.input?.sandType || 'M-Sand'})</td><td className="td-mono">{(quantities.sandCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">For masonry &amp; plaster</td></tr>
+                  <tr><td className="td-bold">Coarse Aggregate</td><td className="td-mono">{(quantities.aggregateCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">20mm &amp; 40mm jelly</td></tr>
+                  <tr><td className="td-bold">{result.input?.brickType || 'Standard Blocks'}</td><td className="td-mono">{(quantities.blocksQty || 0).toLocaleString()}</td><td>Nos</td><td className="text-muted">Walling &amp; partition</td></tr>
+                  <tr><td className="td-bold">Flooring ({result.input?.flooringType || 'Vitrified'})</td><td className="td-mono">{(quantities.tilesArea || 0).toLocaleString()}</td><td>Sqft</td><td className="text-muted">Includes wastage percentage</td></tr>
+                  <tr><td className="td-bold">Paint ({result.input?.paintType || 'Premium Emulsion'})</td><td className="td-mono">{(quantities.paintLitres || 0).toLocaleString()}</td><td>Litres</td><td className="text-muted">Interior &amp; exterior walls</td></tr>
+                  <tr><td className="td-bold">Electrical Points</td><td className="td-mono">{quantities.electricalPoints}</td><td>Points</td><td className="text-muted">Wiring, switches &amp; boards</td></tr>
+                  <tr><td className="td-bold">Plumbing Points</td><td className="td-mono">{quantities.plumbingPoints}</td><td>Points</td><td className="text-muted">CPVC/PVC piping</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{ overflow:'hidden', marginTop: '24px' }}>
+          <div className="card-header" style={{
+            background:'linear-gradient(135deg, #f8fafc 0%, #ecfeff 100%)',
+            borderBottom:'1px solid var(--color-gray-100)',
+          }}>
+            <div className="card-title">📐 Project Area Specifications</div>
+            <div className="card-subtitle">Detailed dimensions and site area analysis</div>
+          </div>
+          <div className="p-0">
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: '0 0 12px 12px' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Specification</th>
+                    <th style={{ textAlign: 'right' }}>Calculated Area</th>
+                    <th>Unit</th>
+                    <th>Formula / Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="td-bold">Plot Area</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(summary.plotArea || 0).toLocaleString()}</td>
+                    <td>Sqft</td>
+                    <td className="text-muted">Plot Length × Plot Width</td>
+                  </tr>
+                  <tr>
+                    <td className="td-bold">Ground Coverage Area</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(summary.groundCoverageArea || 0).toLocaleString()}</td>
+                    <td>Sqft</td>
+                    <td className="text-muted">Ground Floor Footprint</td>
+                  </tr>
+                  <tr>
+                    <td className="td-bold">Open Area</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(summary.openArea || 0).toLocaleString()}</td>
+                    <td>Sqft</td>
+                    <td className="text-muted">Plot Area − Ground Coverage Area</td>
+                  </tr>
+                  <tr>
+                    <td className="td-bold">Total Built-up Area</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(summary.totalSqft || 0).toLocaleString()}</td>
+                    <td>Sqft</td>
+                    <td className="text-muted">Sum of all floor-wise areas (incl. staircase/covered portico)</td>
+                  </tr>
+                  <tr>
+                    <td className="td-bold">Staircase Area</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(summary.staircaseArea || 0).toLocaleString()}</td>
+                    <td>Sqft</td>
+                    <td className="text-muted">Staircase Length × Staircase Width</td>
+                  </tr>
+                  <tr>
+                    <td className="td-bold">Portico Area</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(summary.porticoArea || 0).toLocaleString()}</td>
+                    <td>Sqft</td>
+                    <td className="text-muted">Portico Length × Portico Width</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* PANEL 2: BOQ */}
+      <div className={`tab-panel ${activeTab === 'boq' ? 'web-visible' : 'web-hidden'}`}>
+        <div className="card" style={{ overflow:'hidden' }}>
+          <div className="card-header" style={{
+            background:'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)',
+            borderBottom:'1px solid var(--color-gray-100)',
+          }}>
+            <div className="card-title">Bill of Quantities (BOQ)</div>
+            <div className="card-subtitle">Detailed itemized cost breakdown</div>
+          </div>
+          <div className="p-0">
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: '0 0 12px 12px' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Unit</th>
+                    <th style={{ textAlign: 'right' }}>Qty</th>
+                    <th style={{ textAlign: 'right' }}>Rate (₹)</th>
+                    <th style={{ textAlign: 'right' }}>Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CATEGORIES.map((cat) => {
+                    const items = grouped[cat];
+                    if (!items || items.length === 0) return null;
+                    const catTotal = items.reduce((s, i) => s + i.amount, 0);
+                    const palette = CAT_PALETTE[cat] || CAT_PALETTE['Civil Works'];
+                    return (
+                      <>
+                        <tr className="boq-group-header" key={`hdr-${cat}`}
+                          style={{ background: palette.hdr }}>
+                          <td colSpan={6} style={{
+                            color: palette.text, fontWeight:700,
+                            borderLeft:`4px solid ${palette.accent}`,
+                            paddingLeft:'14px', letterSpacing:'0.3px',
+                          }}>
+                            {cat}
+                          </td>
+                        </tr>
+                        {items.map((item) => (
+                          <tr key={item.code}>
+                            <td className="td-mono text-muted">{item.code}</td>
+                            <td className="td-bold">{item.description}</td>
+                            <td className="text-muted">{item.unit}</td>
+                            <td className="td-mono" style={{ textAlign: 'right' }}>{item.qty.toLocaleString()}</td>
+                            <td className="td-mono" style={{ textAlign: 'right' }}>
+                              {item.rate === 0 ? <span style={{ color: '#0f766e', fontWeight: 600, fontSize: '11px' }}>Included</span> : item.rate.toLocaleString()}
+                            </td>
+                            <td className="td-mono td-bold" style={{ textAlign: 'right' }}>
+                              {item.amount === 0 ? <span style={{ color: '#0f766e', fontWeight: 600, fontSize: '11px' }}>Included</span> : item.amount.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr style={{ background: 'var(--color-gray-50)' }}>
+                          <td colSpan={5} style={{ textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--color-gray-600)' }}>Subtotal — {cat}</td>
+                          <td className="td-mono td-bold" style={{ textAlign: 'right', color: palette.accent }}>{catTotal.toLocaleString()}</td>
+                        </tr>
+                      </>
+                    );
+                  })}
+                  
+                  {/* Summary Totals */}
+                  <tr className="table-total" style={{ borderTop: '2px solid #0f766e' }}>
+                    <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600 }}>Subtotal (Civil + MEP + Finishes)</td>
+                    <td className="td-mono td-bold" style={{ textAlign: 'right' }}>{(costs.subtotal ?? 0).toLocaleString()}</td>
+                  </tr>
+                  <tr className="table-total">
+                    <td colSpan={5} style={{ textAlign: 'right' }}>Contingency Buffer (@ {costs.contingencyPct ?? result.contingency_pct ?? 5}%)</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(costs.contingency ?? result.contingency_amount ?? 0).toLocaleString()}</td>
+                  </tr>
+                  {((costs.builderMargin !== undefined && costs.builderMargin > 0) || costs.builder_margin !== undefined) && (
+                    <tr className="table-total">
+                      <td colSpan={5} style={{ textAlign: 'right' }}>Builder Profit Margin (@ {costs.builderMarginPct ?? 10}%)</td>
+                      <td className="td-mono" style={{ textAlign: 'right' }}>{(costs.builderMargin ?? 0).toLocaleString()}</td>
+                    </tr>
+                  )}
+                  <tr className="table-total">
+                    <td colSpan={5} style={{ textAlign: 'right' }}>GST / Taxes (@ {costs.gstPct ?? result.gst_pct ?? 18}%)</td>
+                    <td className="td-mono" style={{ textAlign: 'right' }}>{(costs.gst ?? result.gst_amount ?? 0).toLocaleString()}</td>
+                  </tr>
+                  <tr className="table-total" style={{ background: 'rgba(15,118,110,0.06)' }}>
+                    <td colSpan={5} style={{ textAlign: 'right', fontSize: '14px', color: 'var(--color-primary)', fontWeight: 800 }}>GRAND TOTAL ESTIMATE</td>
+                    <td className="td-mono" style={{ textAlign: 'right', fontSize: '15px', color: 'var(--color-primary)', fontWeight: 800 }}>{(costs.grandTotal ?? result.grand_total ?? 0).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* PANEL 3: Recommendations */}
+      <div className={`tab-panel ${activeTab === 'recommendations' ? 'web-visible' : 'web-hidden'}`}>
+        <div>
+          {/* Gradient header banner (Web only, styled simple for print) */}
+          <div className="card" style={{
+            background:'linear-gradient(135deg, #0b1120 0%, #0f2027 60%, rgba(15,118,110,0.27) 100%)',
+            borderRadius:'14px', padding:'22px 28px', marginBottom:'20px',
+            display:'flex', alignItems:'center', gap:'18px',
+            boxShadow:'0 4px 24px rgba(0,0,0,0.18)',
+            position:'relative', overflow:'hidden',
+            border: 'none'
+          }}>
+            <div style={{
+              width:'52px', height:'52px', borderRadius:'14px', flexShrink:0,
+              background:'linear-gradient(135deg, #0f766e, #0891b2)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:'26px',
+            }}>🤖</div>
+            <div>
+              <div style={{ fontSize:'17px', fontWeight:700, color:'#ffffff', marginBottom:'4px' }}>
+                AI-Powered Recommendations &amp; Inspected Notes
+              </div>
+              <div style={{ fontSize:'13px', color:'rgba(255,255,255,0.55)', lineHeight:1.5 }}>
+                Based on your project in <span style={{ color:'#99f6e4' }}>{summary.location}</span>,
+                materials, and scope.
+              </div>
+            </div>
+          </div>
+
+          {(recommendations || []).map((rec, i) => {
+            const type = rec.type === 'tip' ? 'tip' : rec.type === 'warn' ? 'warn' : 'info';
+            const glow = REC_GLOW[type];
+            return (
+              <div
+                key={i}
+                className="card rec-card"
+                style={{
+                  background: glow.bg,
+                  borderLeft: `4px solid ${glow.border}`,
+                  borderRadius:'12px',
+                  marginBottom:'12px',
+                  padding:'16px 20px',
+                }}
+              >
+                <div style={{ fontWeight:700, marginBottom:'6px', color: '#1e293b' }}>
+                  {rec.type === 'tip' ? '💡 Tip' : rec.type === 'warn' ? '⚠️ Warning' : 'ℹ️ Info'} · {rec.title}
+                </div>
+                <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5 }}>{rec.text}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Layout>
+  );
+}
