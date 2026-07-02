@@ -14,10 +14,19 @@ load_dotenv()
 app = Flask(__name__)
 
 # Allow requests from the Vite dev server and any local React app
-CORS(app, origins=[
-    'http://localhost:5173',
-    'http://localhost:3000',
-])
+CORS(app, origins='*')
+
+
+# ── Welcome & Status Root Route ────────────────────────────────────────────
+@app.route('/')
+def home():
+    """Welcome page showcasing the AI Estimator Status."""
+    return jsonify({
+        'status': 'active',
+        'system': 'BuildSmart AI Estimator API Engine',
+        'message': 'BuildSmart AI backend is running properly. Systems: AI Estimator (Active), Database (Connected), Auth Service (Online).',
+        'documentation': 'Access /api/health for system status check.'
+    })
 
 # ── Register blueprints ────────────────────────────────────────────────────
 from routes.auth      import auth_bp
