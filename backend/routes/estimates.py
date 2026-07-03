@@ -13,6 +13,22 @@ from services.estimator import calculate_estimate
 estimates_bp = Blueprint('estimates_bp', __name__, url_prefix='/api/estimates')
 
 
+# ---------------------------------------------------------------------------
+# Helpers for database check constraint compatibility
+# Maps 'Base' (UI) to 'Budget' (DB constraint)
+# ---------------------------------------------------------------------------
+def map_quality_to_db(q):
+    if q == 'Base':
+        return 'Budget'
+    return q
+
+def map_quality_from_db(q):
+    if q == 'Budget':
+        return 'Base'
+    return q
+
+
+
 
 # ---------------------------------------------------------------------------
 # Helper – reuse same token extractor as projects
@@ -112,12 +128,12 @@ def generate_estimate():
                 'builder_id':    user_id,
                 'name':          project_name,
                 'location':      data.get('location') or data.get('city', ''),
-                'building_type': data.get('building_type') or data.get('buildingType', ''),
+                'building_type': data.get('building_type') or data.get('buildingType') or 'Residential Villa',
                 'total_sqft':    data.get('total_sqft') or data.get('totalSqft') or 1500,
                 'floors':        data.get('floors') or 1,
                 'bedrooms':      data.get('bedrooms') or 0,
                 'bathrooms':     data.get('bathrooms') or 0,
-                'quality':       data.get('quality', 'Standard'),
+                'quality':       map_quality_to_db(data.get('quality', 'Standard')),
             }
             
             # Map new optional columns
@@ -343,6 +359,8 @@ def get_estimate(estimate_id):
             try:
                 proj_resp = supabase_admin.table('projects').select('*').eq('id', project_id).single().execute()
                 estimate['project'] = proj_resp.data or {}
+                if estimate['project'] and 'quality' in estimate['project']:
+                    estimate['project']['quality'] = map_quality_from_db(estimate['project']['quality'])
                 
                 floors_resp = supabase_admin.table('project_floors').select('*').eq('project_id', project_id).execute()
                 estimate['project']['floors_list'] = floors_resp.data or []
@@ -389,6 +407,8 @@ def export_estimate_excel(estimate_id):
 
         estimate = estimate_resp.data
         project = estimate.get('projects', {})
+        if project and 'quality' in project:
+            project['quality'] = map_quality_from_db(project['quality'])
         output_json = estimate.get('output_json', {})
 
         # 2. Fetch BOQ items
@@ -472,9 +492,6 @@ def export_estimate_excel(estimate_id):
             cell.alignment = Alignment(horizontal='left')
 
         costs = [
-            ("Construction Subtotal", estimate.get('subtotal', 0)),
-            ("Contingency Buffer", estimate.get('contingency_amount', 0)),
-            ("GST / Taxes", estimate.get('gst_amount', 0)),
             ("Grand Total Estimate", estimate.get('grand_total', 0))
         ]
 
@@ -531,10 +548,8 @@ def export_estimate_excel(estimate_id):
         ws2['C3'] = "Description"
         ws2['D3'] = "Unit"
         ws2['E3'] = "Quantity"
-        ws2['F3'] = "Rate (₹)"
-        ws2['G3'] = "Amount (₹)"
 
-        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G']:
+        for col in ['A', 'B', 'C', 'D', 'E']:
             cell = ws2[f"{col}3"]
             cell.font = header_font
             cell.fill = header_fill
@@ -550,13 +565,12 @@ def export_estimate_excel(estimate_id):
         for category, items in grouped.items():
             # Category subheader row
             ws2.cell(row=row_idx, column=1, value=category).font = section_font
-            ws2.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=7)
-            for c in range(1, 8):
+            ws2.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=5)
+            for c in range(1, 6):
                 ws2.cell(row=row_idx, column=c).fill = gray_fill
                 ws2.cell(row=row_idx, column=c).border = thin_border
             row_idx += 1
 
-            cat_start_row = row_idx
             for item in items:
                 ws2.cell(row=row_idx, column=1, value=item.get('material_code', '')).font = regular_font
                 ws2.cell(row=row_idx, column=2, value=category).font = regular_font
@@ -566,55 +580,31 @@ def export_estimate_excel(estimate_id):
                 qty_cell = ws2.cell(row=row_idx, column=5, value=item.get('quantity', 0))
                 qty_cell.font = regular_font
                 qty_cell.number_format = '#,##0'
-                
-                rate_cell = ws2.cell(row=row_idx, column=6, value=item.get('rate', 0))
-                rate_cell.font = regular_font
-                rate_cell.number_format = '₹#,##0'
-                
-                amt_cell = ws2.cell(row=row_idx, column=7, value=item.get('amount', 0))
-                amt_cell.font = regular_font
-                amt_cell.number_format = '₹#,##0'
 
-                for c in range(1, 8):
+                for c in range(1, 6):
                     ws2.cell(row=row_idx, column=c).border = thin_border
                 row_idx += 1
-
-            # Subtotal row for category
-            sub_label_cell = ws2.cell(row=row_idx, column=1, value=f"Subtotal - {category}")
-            sub_label_cell.font = bold_font
-            ws2.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=6)
-            
-            sub_amt_cell = ws2.cell(row=row_idx, column=7, value=f"=SUM(G{cat_start_row}:G{row_idx-1})")
-            sub_amt_cell.font = bold_font
-            sub_amt_cell.number_format = '₹#,##0'
-            
-            for c in range(1, 8):
-                ws2.cell(row=row_idx, column=c).fill = gray_fill
-                ws2.cell(row=row_idx, column=c).border = thin_border
-            row_idx += 1
 
         # Grand Total row
         row_idx += 1
         total_label_cell = ws2.cell(row=row_idx, column=1, value="GRAND TOTAL ESTIMATE")
         total_label_cell.font = bold_font
-        ws2.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=6)
+        ws2.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=4)
         
-        total_amt_cell = ws2.cell(row=row_idx, column=7, value=estimate.get('grand_total', 0))
+        total_amt_cell = ws2.cell(row=row_idx, column=5, value=estimate.get('grand_total', 0))
         total_amt_cell.font = bold_font
         total_amt_cell.number_format = '₹#,##0'
         
-        for c in range(1, 8):
+        for c in range(1, 6):
             ws2.cell(row=row_idx, column=c).fill = accent_fill
             ws2.cell(row=row_idx, column=c).border = double_bottom
 
         # Column widths BOQ
         ws2.column_dimensions['A'].width = 15
         ws2.column_dimensions['B'].width = 15
-        ws2.column_dimensions['C'].width = 40
-        ws2.column_dimensions['D'].width = 10
-        ws2.column_dimensions['E'].width = 12
-        ws2.column_dimensions['F'].width = 12
-        ws2.column_dimensions['G'].width = 15
+        ws2.column_dimensions['C'].width = 50
+        ws2.column_dimensions['D'].width = 12
+        ws2.column_dimensions['E'].width = 15
 
         # Save workbook to memory
         fp = io.BytesIO()

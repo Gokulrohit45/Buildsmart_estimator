@@ -30,7 +30,7 @@ const ADMIN_NAV = [
     section: 'Configuration',
     items: [
       { icon: '₹', label: 'Rate Master', path: '/admin/rates', emoji: '₹' },
-      { icon: '⚙', label: 'System Settings', path: '/admin/settings', emoji: '⚙️' },
+      { icon: '⚙', label: 'Package & Add-on Rates', path: '/admin/settings', emoji: '⚙️' },
     ],
   },
 ];

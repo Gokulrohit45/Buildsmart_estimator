@@ -10,8 +10,21 @@ projects_bp = Blueprint('projects_bp', __name__, url_prefix='/api/projects')
 
 
 # ---------------------------------------------------------------------------
-# Helper – extract authenticated user id from Bearer token
+# Helpers for database check constraint compatibility
+# Maps 'Base' (UI) to 'Budget' (DB constraint)
 # ---------------------------------------------------------------------------
+def map_quality_to_db(q):
+    if q == 'Base':
+        return 'Budget'
+    return q
+
+def map_quality_from_db(q):
+    if q == 'Budget':
+        return 'Base'
+    return q
+
+
+# Helper – extract authenticated user id from Bearer token
 def get_user_id_from_token(req):
     """
     Extract and validate the Bearer token from the request Authorization header.
@@ -61,7 +74,13 @@ def list_projects():
             .execute()
         )
 
-        return jsonify({'success': True, 'data': response.data}), 200
+        projects_data = response.data or []
+        for p in projects_data:
+            if 'quality' in p:
+                p['quality'] = map_quality_from_db(p['quality'])
+
+        return jsonify({'success': True, 'data': projects_data}), 200
+
 
     except ValueError as ve:
         return jsonify({'error': str(ve)}), 401
@@ -85,7 +104,7 @@ def create_project():
 
         name          = data.get('name', '').strip()
         location      = data.get('location', '').strip()
-        building_type = (data.get('building_type') or data.get('buildingType') or '').strip()
+        building_type = (data.get('building_type') or data.get('buildingType') or 'Residential Villa').strip()
         total_sqft    = data.get('total_sqft') or data.get('totalSqft')
         floors        = data.get('floors')
         bedrooms      = data.get('bedrooms')
@@ -93,7 +112,6 @@ def create_project():
         quality       = data.get('quality', '').strip()
 
         if not name:
-
             return jsonify({'error': 'Project name is required.'}), 400
 
         insert_payload = {
@@ -105,7 +123,7 @@ def create_project():
             'floors':        floors,
             'bedrooms':      bedrooms,
             'bathrooms':     bathrooms,
-            'quality':       quality,
+            'quality':       map_quality_to_db(quality),
         }
 
         response = (
@@ -116,6 +134,8 @@ def create_project():
         )
 
         created = response.data[0] if response.data else {}
+        if 'quality' in created:
+            created['quality'] = map_quality_from_db(created['quality'])
         return jsonify({'success': True, 'data': created}), 201
 
     except ValueError as ve:
@@ -148,7 +168,12 @@ def get_project(project_id):
         if not response.data:
             return jsonify({'error': 'Project not found.'}), 404
 
-        return jsonify({'success': True, 'data': response.data}), 200
+        project = response.data
+        if 'quality' in project:
+            project['quality'] = map_quality_from_db(project['quality'])
+
+        return jsonify({'success': True, 'data': project}), 200
+
 
     except ValueError as ve:
         return jsonify({'error': str(ve)}), 401

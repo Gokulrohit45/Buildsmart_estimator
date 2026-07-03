@@ -201,13 +201,13 @@ def import_rates():
         
         for row in reader:
             row_num += 1
-            city = row.get('city', '').strip()
+            city = (row.get('city') or 'Default').strip()
             material_code = row.get('material_code', '').strip().upper()
             rate_str = row.get('rate', '').strip()
             vendor = row.get('vendor', '').strip()
             
             if not city or not material_code or not rate_str:
-                errors.append(f"Row {row_num}: Missing required columns (city, material_code, rate)")
+                errors.append(f"Row {row_num}: Missing required columns (material_code, rate)")
                 continue
                 
             try:
@@ -256,13 +256,13 @@ def create_rate():
         is_admin(request)
         data = request.get_json(force=True) or {}
 
-        city          = data.get('city', '').strip()
+        city          = (data.get('city') or 'Default').strip()
         material_code = data.get('material_code', '').strip()
         rate          = data.get('rate')
         vendor        = data.get('vendor', '').strip()
 
         if not city or not material_code or rate is None:
-            return jsonify({'error': 'city, material_code, and rate are required.'}), 400
+            return jsonify({'error': 'material_code and rate are required.'}), 400
 
         response = (
             supabase_admin

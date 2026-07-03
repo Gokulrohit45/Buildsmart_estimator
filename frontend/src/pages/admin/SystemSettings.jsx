@@ -3,25 +3,97 @@ import Layout from '../../components/layout/Layout';
 import { adminAPI } from '../../services/api';
 
 const DEFAULT_SETTINGS = {
-  default_gst_pct: '18',
+  // Defaults
   contingency_pct: '5',
-  app_name: 'BuildSmart AI Estimator',
-  support_email: 'support@buildsmart.in',
-  max_projects_per_builder: '50',
+
+  // Construction Package Rates
+  rate_package_base: '2100',
+  rate_package_standard: '2400',
+  rate_package_premium: '2600',
+  rate_package_luxury: '2800',
+
+  // Additional Works Rates
+  rate_compound_wall: '50',
+  rate_water_tank: '5',
+  rate_septic_tank: '8',
+  rate_front_elevation: '120',
+  rate_interior: '150',
+  rate_open_portico: '800',
+
+  // False Ceiling Rates
+  rate_false_ceiling_base: '10',
+  rate_false_ceiling_standard: '15',
+  rate_false_ceiling_premium: '20',
+  rate_false_ceiling_luxury: '25',
+
+  // UPVC Wardrobes Rates
+  rate_wardrobe_quality1: '260',
+  rate_wardrobe_quality2: '280',
+  rate_wardrobe_quality3: '300',
+  rate_wardrobe_quality4: '320',
+
+  // Wood Wardrobes Rates
+  rate_wardrobe_wood_quality1: '330',
+  rate_wardrobe_wood_quality2: '340',
+  rate_wardrobe_wood_quality3: '350',
+  rate_wardrobe_wood_quality4: '360',
+
+  // Entrance Gate Rates
+  rate_gate_base: '50',
+  rate_gate_standard: '60',
+  rate_gate_premium: '80',
+  rate_gate_luxury: '90',
+
+  // Tiles Rates
+  rate_tiles_floor_base: '50',
+  rate_tiles_floor_standard: '60',
+  rate_tiles_floor_premium: '80',
+  rate_tiles_floor_luxury: '100',
+
+  rate_tiles_bath_floor_base: '50',
+  rate_tiles_bath_floor_standard: '60',
+  rate_tiles_bath_floor_premium: '80',
+  rate_tiles_bath_floor_luxury: '100',
+
+  rate_tiles_bath_wall_base: '50',
+  rate_tiles_bath_wall_standard: '60',
+  rate_tiles_bath_wall_premium: '80',
+  rate_tiles_bath_wall_luxury: '100',
+
+  rate_tiles_kitchen_wall_base: '50',
+  rate_tiles_kitchen_wall_standard: '60',
+  rate_tiles_kitchen_wall_premium: '80',
+  rate_tiles_kitchen_wall_luxury: '100',
+
+  rate_tiles_portico_base: '50',
+  rate_tiles_portico_standard: '60',
+  rate_tiles_portico_premium: '80',
+  rate_tiles_portico_luxury: '100',
+
+  // Modular Kitchen Rates
+  rate_modular_kitchen_base: '20',
+  rate_modular_kitchen_standard: '25',
+  rate_modular_kitchen_premium: '30',
+  rate_modular_kitchen_luxury: '40'
 };
 
 const SECTION_ICONS = {
-  General: '⚙️',
   'Estimation Defaults': '🧮',
-  'User & Registration': '👥',
-  'CPWD Cost Indexes': '🏙️',
+  'Construction Package Rates': '🏗️',
+  'Additional Works Rates': '🛠️',
+  'Entrance Gate Rates': '🚧',
+  'False Ceiling Rates': '📐',
+  'UPVC Wardrobes Rates': '🚪',
+  'Wood Wardrobes Rates': '🪵',
+  'Tiles Package Rates': '🧱',
+  'Modular Kitchen Rates': '🍳'
 };
 
 function SettingRow({ label, sublabel, children }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      padding: '20px 0', borderBottom: '1px solid var(--color-gray-100)', gap: '24px',
+      padding: '16px 0', borderBottom: '1px solid var(--color-gray-100)', gap: '24px',
       transition: 'background 0.15s',
     }}>
       <div style={{ flex: 1 }}>
@@ -41,7 +113,6 @@ function SectionCard({ title, children }) {
   const icon = SECTION_ICONS[title] || '⚙️';
   return (
     <div className="card" style={{ marginBottom: '20px', overflow: 'hidden' }}>
-      {/* Gradient top accent */}
       <div style={{ height: '3px', background: 'linear-gradient(90deg, #0f766e, #0891b2)', width: '100%' }} />
       <div className="card-header" style={{ background: 'linear-gradient(135deg, rgba(15,118,110,0.04) 0%, rgba(8,145,178,0.02) 100%)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -65,26 +136,14 @@ export default function SystemSettings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  // Cost Index state variables
-  const [cityIndexes, setCityIndexes] = useState([]);
-  const [newCityName, setNewCityName] = useState('');
-  const [newCityState, setNewCityState] = useState('');
-  const [newCityIndex, setNewCityIndex] = useState('100');
-
   useEffect(() => { loadSettings(); }, []);
 
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const [serverSettings, indexesResponse] = await Promise.all([
-        adminAPI.getSettings(),
-        adminAPI.getCityIndexes()
-      ]);
+      const serverSettings = await adminAPI.getSettings();
       if (serverSettings && typeof serverSettings === 'object') {
         setSettings((prev) => ({ ...prev, ...serverSettings }));
-      }
-      if (indexesResponse) {
-        setCityIndexes(Array.isArray(indexesResponse) ? indexesResponse : (indexesResponse.data || []));
       }
     } catch (err) {
       setError('Could not load saved settings — showing defaults.');
@@ -95,49 +154,14 @@ export default function SystemSettings() {
 
   const set = (k, v) => setSettings((s) => ({ ...s, [k]: v }));
 
-  const handleIndexChange = (city, state, val) => {
-    setCityIndexes(prev => prev.map(ci => (ci.city === city && ci.state === state) ? { ...ci, cost_index: val } : ci));
-  };
-
-  const handleAddCityIndex = (e) => {
-    e.preventDefault();
-    setError('');
-    if (!newCityName.trim() || !newCityState.trim()) {
-      setError('City Name and State are required.');
-      return;
-    }
-    const cleanCity = newCityName.trim();
-    const cleanState = newCityState.trim();
-    
-    if (cityIndexes.some(ci => ci.city.toLowerCase() === cleanCity.toLowerCase() && ci.state.toLowerCase() === cleanState.toLowerCase())) {
-      setError(`City "${cleanCity}" in state "${cleanState}" already exists in the cost indexes list.`);
-      return;
-    }
-
-    const newRow = {
-      city: cleanCity,
-      state: cleanState,
-      cost_index: parseFloat(newCityIndex) || 100.0
-    };
-
-    setCityIndexes(prev => [...prev, newRow]);
-    setNewCityName('');
-    setNewCityState('');
-    setNewCityIndex('100');
-  };
-
   const handleSave = async () => {
     setSaving(true);
     setError('');
     try {
       const keys = Object.keys(settings);
-      
-      // Save global settings and city indexes concurrently
-      await Promise.all([
-        ...keys.map((k) => adminAPI.updateSetting(k, settings[k])),
-        ...cityIndexes.map((ci) => adminAPI.updateCityIndex(ci.city, ci.cost_index, ci.state))
-      ]);
-      
+      await Promise.all(
+        keys.map((k) => adminAPI.updateSetting(k, settings[k]))
+      );
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -147,7 +171,6 @@ export default function SystemSettings() {
     }
   };
 
-  const inputStyle = { width: '260px' };
   const numberInputStyle = { width: '120px' };
 
   return (
@@ -164,7 +187,6 @@ export default function SystemSettings() {
         position: 'relative',
         overflow: 'hidden',
       }}>
-        {/* Background glow */}
         <div style={{
           position: 'absolute', right: 60, top: -30, width: 200, height: 200,
           background: 'radial-gradient(circle, rgba(15,118,110,0.2) 0%, transparent 70%)',
@@ -176,10 +198,10 @@ export default function SystemSettings() {
             Configuration
           </div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', marginBottom: '6px' }}>
-            System Settings
+            Package &amp; Add-on Rates
           </div>
           <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>
-            Global configuration for the BuildSmart platform
+            Manage construction package values and add-on unit pricing rates
           </div>
         </div>
 
@@ -199,7 +221,7 @@ export default function SystemSettings() {
       {saved && (
         <div className="alert alert-green" style={{ marginBottom: 20 }}>
           <span className="alert-icon">✅</span>
-          <div><div className="alert-title">Settings saved</div>All changes have been saved successfully.</div>
+          <div><div className="alert-title">Settings saved</div>All package rates and add-on pricing updated successfully.</div>
         </div>
       )}
       {error && (
@@ -209,21 +231,9 @@ export default function SystemSettings() {
         </div>
       )}
 
-      {/* General */}
-      <SectionCard title="General">
-        <SettingRow label="Application Name" sublabel="Displayed in the browser title and header across the platform">
-          <input className="form-control" style={inputStyle} value={settings.app_name || ''}
-            onChange={(e) => set('app_name', e.target.value)} disabled={loading} />
-        </SettingRow>
-        <SettingRow label="Support Email" sublabel="Email address shown to users for support queries and notifications">
-          <input className="form-control" style={inputStyle} value={settings.support_email || ''}
-            onChange={(e) => set('support_email', e.target.value)} disabled={loading} />
-        </SettingRow>
-      </SectionCard>
-
       {/* Estimation Defaults */}
       <SectionCard title="Estimation Defaults">
-        <SettingRow label="Default Contingency (%)" sublabel="Added as a buffer over subtotal in all AI-generated estimates. Recommended: 5%">
+        <SettingRow label="Default Contingency (%)" sublabel="Added as a buffer over subtotal in all estimates">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input className="form-control" type="number" style={numberInputStyle}
               value={settings.contingency_pct || ''} onChange={(e) => set('contingency_pct', e.target.value)}
@@ -231,160 +241,148 @@ export default function SystemSettings() {
             <span style={{ fontSize: '13px', color: 'var(--color-gray-500)', fontWeight: 500 }}>%</span>
           </div>
         </SettingRow>
-        <SettingRow label="Default GST (%)" sublabel="Applied when generating client-facing quotations. Current standard: 18%">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input className="form-control" type="number" style={numberInputStyle}
-              value={settings.default_gst_pct || ''} onChange={(e) => set('default_gst_pct', e.target.value)}
-              min="0" max="28" disabled={loading} />
-            <span style={{ fontSize: '13px', color: 'var(--color-gray-500)', fontWeight: 500 }}>%</span>
-          </div>
+      </SectionCard>
+
+      {/* Package Rates */}
+      <SectionCard title="Construction Package Rates">
+        <SettingRow label="Base Package Rate (₹/sqft)" sublabel="Rate for Base construction package (Standard is ₹2,100)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_package_base || ''}
+            onChange={(e) => set('rate_package_base', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Standard Package Rate (₹/sqft)" sublabel="Rate for Standard construction package (Standard is ₹2,400)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_package_standard || ''}
+            onChange={(e) => set('rate_package_standard', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Premium Package Rate (₹/sqft)" sublabel="Rate for Premium construction package (Standard is ₹2,600)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_package_premium || ''}
+            onChange={(e) => set('rate_package_premium', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Luxury Package Rate (₹/sqft)" sublabel="Rate for Luxury construction package (Standard is ₹2,800)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_package_luxury || ''}
+            onChange={(e) => set('rate_package_luxury', e.target.value)} disabled={loading} />
         </SettingRow>
       </SectionCard>
 
-      {/* User & Registration */}
-      <SectionCard title="User & Registration">
-        <SettingRow label="Max Projects per Builder" sublabel="Maximum number of estimates a single builder account can create on the platform">
-          <input className="form-control" type="number" style={numberInputStyle}
-            value={settings.max_projects_per_builder || ''} onChange={(e) => set('max_projects_per_builder', e.target.value)}
-            min="1" disabled={loading} />
+      {/* Additional Works Rates */}
+      <SectionCard title="Additional Works Rates">
+        <SettingRow label="Compound Wall Rate (₹/sqft)" sublabel="Compound Wall Construction rate (Default is ₹50)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_compound_wall || ''}
+            onChange={(e) => set('rate_compound_wall', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Underground Water Tank Rate (₹/litre)" sublabel="Sump tank rate per capacity litre (Default is ₹5)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_water_tank || ''}
+            onChange={(e) => set('rate_water_tank', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Septic Tank Rate (₹/litre)" sublabel="Septic tank rate per capacity litre (Default is ₹8)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_septic_tank || ''}
+            onChange={(e) => set('rate_septic_tank', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Front Elevation Rate (₹/sqft)" sublabel="Facade designer front elevation rate (Default is ₹120)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_front_elevation || ''}
+            onChange={(e) => set('rate_front_elevation', e.target.value)} disabled={loading} />
         </SettingRow>
       </SectionCard>
 
-      {/* CPWD Cost Indexes */}
-      <SectionCard title="CPWD Cost Indexes">
-        <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--color-gray-400)', lineHeight: 1.5 }}>
-          Define the inflation adjustment Cost Index for each city relative to the New Delhi baseline (100.0). Standard material and labour costs are scaled by this factor.
-        </div>
-        
-        {/* Table list of city indexes */}
-        <div className="table-wrapper" style={{ border: '1px solid var(--color-gray-200)', borderRadius: '8px', marginBottom: '24px', overflow: 'hidden' }}>
-          <table style={{ margin: 0 }}>
-            <thead style={{ background: '#f8fafc' }}>
-              <tr>
-                <th style={{ color: 'var(--color-gray-700)', fontWeight: 600, fontSize: '12px' }}>City Name</th>
-                <th style={{ color: 'var(--color-gray-700)', fontWeight: 600, fontSize: '12px' }}>State</th>
-                <th style={{ color: 'var(--color-gray-700)', fontWeight: 600, fontSize: '12px', width: '180px' }}>CPWD Cost Index</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cityIndexes.length === 0 ? (
-                <tr>
-                  <td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: 'var(--color-gray-400)' }}>
-                    No city indexes configured.
-                  </td>
-                </tr>
-              ) : (
-                cityIndexes.map((ci) => (
-                  <tr key={`${ci.city}-${ci.state}`}>
-                    <td className="td-bold">{ci.city}</td>
-                    <td className="text-muted">{ci.state}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          className="form-control"
-                          type="number"
-                          style={{ width: '100px', height: '32px', padding: '4px 8px', fontSize: '13px' }}
-                          value={ci.cost_index}
-                          onChange={(e) => handleIndexChange(ci.city, ci.state, e.target.value)}
-                          min="1"
-                          step="0.1"
-                          disabled={loading}
-                        />
-                        <span style={{ fontSize: '12px', color: 'var(--color-gray-400)' }}>%</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Form to add a new city index */}
-        <div style={{
-          background: 'rgba(15,118,110,0.03)',
-          border: '1px dashed var(--color-primary-light)',
-          borderRadius: '8px',
-          padding: '16px 20px',
-        }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '12px' }}>
-            ＋ Add New City Cost Index
-          </div>
-          <form onSubmit={handleAddCityIndex} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1, minWidth: '150px' }}>
-              <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>City Name *</label>
-              <input
-                className="form-control"
-                style={{ height: '36px', fontSize: '13px' }}
-                placeholder="e.g. Coimbatore"
-                value={newCityName}
-                onChange={(e) => setNewCityName(e.target.value)}
-                required
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: '150px' }}>
-              <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>State *</label>
-              <input
-                className="form-control"
-                style={{ height: '36px', fontSize: '13px' }}
-                placeholder="e.g. Tamil Nadu"
-                value={newCityState}
-                onChange={(e) => setNewCityState(e.target.value)}
-                required
-              />
-            </div>
-            <div style={{ width: '120px' }}>
-              <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Cost Index *</label>
-              <input
-                className="form-control"
-                type="number"
-                style={{ height: '36px', fontSize: '13px' }}
-                placeholder="100"
-                value={newCityIndex}
-                onChange={(e) => setNewCityIndex(e.target.value)}
-                min="1"
-                step="0.1"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="btn btn-secondary"
-              style={{ height: '36px', padding: '0 16px', fontWeight: 600, fontSize: '13px' }}
-            >
-              Add City
-            </button>
-          </form>
-        </div>
+      {/* False Ceiling Rates */}
+      <SectionCard title="False Ceiling Rates">
+        <SettingRow label="Base Package False Ceiling (₹/sqft)" sublabel="Ceiling rate under Base package (Default is ₹10)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_false_ceiling_base || ''}
+            onChange={(e) => set('rate_false_ceiling_base', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Standard Package False Ceiling (₹/sqft)" sublabel="Ceiling rate under Standard package (Default is ₹15)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_false_ceiling_standard || ''}
+            onChange={(e) => set('rate_false_ceiling_standard', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Premium Package False Ceiling (₹/sqft)" sublabel="Ceiling rate under Premium package (Default is ₹20)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_false_ceiling_premium || ''}
+            onChange={(e) => set('rate_false_ceiling_premium', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Luxury Package False Ceiling (₹/sqft)" sublabel="Ceiling rate under Luxury package (Default is ₹25)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_false_ceiling_luxury || ''}
+            onChange={(e) => set('rate_false_ceiling_luxury', e.target.value)} disabled={loading} />
+        </SettingRow>
       </SectionCard>
 
-      {/* Platform info footer */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '8px',
-      }}>
-        {[
-          { label: 'Platform Version', value: 'v1.0.0', icon: '🚀', color: '#0f766e' },
-          { label: 'Database', value: 'Supabase PostgreSQL', icon: '🗄️', color: '#2563eb' },
-          { label: 'AI Engine', value: 'Rule-Based + Heuristics', icon: '🤖', color: '#7c3aed' },
-        ].map((item) => (
-          <div key={item.label} style={{
-            background: 'var(--bg-card)', border: '1px solid var(--color-gray-200)',
-            borderRadius: 'var(--border-radius-lg)', padding: '16px 20px',
-            display: 'flex', alignItems: 'center', gap: '12px',
-            boxShadow: 'var(--shadow-xs)',
-          }}>
-            <div style={{
-              width: '36px', height: '36px', borderRadius: '8px',
-              background: `${item.color}18`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
-            }}>{item.icon}</div>
-            <div>
-              <div style={{ fontSize: '11px', color: 'var(--color-gray-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-gray-800)', marginTop: '2px' }}>{item.value}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* UPVC Wardrobes Rates */}
+      <SectionCard title="UPVC Wardrobes Rates">
+        <SettingRow label="UPVC Quality 1 (₹/sqft)" sublabel="UPVC wardrobe rate under Quality 1 (Default is ₹260)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_quality1 || ''}
+            onChange={(e) => set('rate_wardrobe_quality1', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="UPVC Quality 2 (₹/sqft)" sublabel="UPVC wardrobe rate under Quality 2 (Default is ₹280)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_quality2 || ''}
+            onChange={(e) => set('rate_wardrobe_quality2', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="UPVC Quality 3 (₹/sqft)" sublabel="UPVC wardrobe rate under Quality 3 (Default is ₹300)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_quality3 || ''}
+            onChange={(e) => set('rate_wardrobe_quality3', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="UPVC Quality 4 (₹/sqft)" sublabel="UPVC wardrobe rate under Quality 4 (Default is ₹320)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_quality4 || ''}
+            onChange={(e) => set('rate_wardrobe_quality4', e.target.value)} disabled={loading} />
+        </SettingRow>
+      </SectionCard>
+
+      {/* Wood Wardrobes Rates */}
+      <SectionCard title="Wood Wardrobes Rates">
+        <SettingRow label="Wood Quality 1 (₹/sqft)" sublabel="Wood wardrobe rate under Quality 1 (Default is ₹330)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_wood_quality1 || ''}
+            onChange={(e) => set('rate_wardrobe_wood_quality1', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Wood Quality 2 (₹/sqft)" sublabel="Wood wardrobe rate under Quality 2 (Default is ₹340)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_wood_quality2 || ''}
+            onChange={(e) => set('rate_wardrobe_wood_quality2', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Wood Quality 3 (₹/sqft)" sublabel="Wood wardrobe rate under Quality 3 (Default is ₹350)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_wood_quality3 || ''}
+            onChange={(e) => set('rate_wardrobe_wood_quality3', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Wood Quality 4 (₹/sqft)" sublabel="Wood wardrobe rate under Quality 4 (Default is ₹360)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_wardrobe_wood_quality4 || ''}
+            onChange={(e) => set('rate_wardrobe_wood_quality4', e.target.value)} disabled={loading} />
+        </SettingRow>
+      </SectionCard>
+
+      {/* Entrance Gate Rates */}
+      <SectionCard title="Entrance Gate Rates">
+        <SettingRow label="Base Gate Package (₹/sqft)" sublabel="Gate fabrication rate under Base quality (Default is ₹50)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_gate_base || ''}
+            onChange={(e) => set('rate_gate_base', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Standard Gate Package (₹/sqft)" sublabel="Gate fabrication rate under Standard quality (Default is ₹60)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_gate_standard || ''}
+            onChange={(e) => set('rate_gate_standard', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Premium Gate Package (₹/sqft)" sublabel="Gate fabrication rate under Premium quality (Default is ₹80)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_gate_premium || ''}
+            onChange={(e) => set('rate_gate_premium', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Luxury Gate Package (₹/sqft)" sublabel="Gate fabrication rate under Luxury quality (Default is ₹90)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_gate_luxury || ''}
+            onChange={(e) => set('rate_gate_luxury', e.target.value)} disabled={loading} />
+        </SettingRow>
+      </SectionCard>
+
+
+      {/* Modular Kitchen Rates */}
+      <SectionCard title="Modular Kitchen Rates">
+        <SettingRow label="Base Modular Kitchen (₹/sqft)" sublabel="Kitchen carpentry rate under Base (Default is ₹20)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_modular_kitchen_base || ''}
+            onChange={(e) => set('rate_modular_kitchen_base', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Standard Modular Kitchen (₹/sqft)" sublabel="Kitchen carpentry rate under Standard (Default is ₹25)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_modular_kitchen_standard || ''}
+            onChange={(e) => set('rate_modular_kitchen_standard', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Premium Modular Kitchen (₹/sqft)" sublabel="Kitchen carpentry rate under Premium (Default is ₹30)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_modular_kitchen_premium || ''}
+            onChange={(e) => set('rate_modular_kitchen_premium', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Luxury Modular Kitchen (₹/sqft)" sublabel="Kitchen carpentry rate under Luxury (Default is ₹40)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_modular_kitchen_luxury || ''}
+            onChange={(e) => set('rate_modular_kitchen_luxury', e.target.value)} disabled={loading} />
+        </SettingRow>
+      </SectionCard>
     </Layout>
   );
 }

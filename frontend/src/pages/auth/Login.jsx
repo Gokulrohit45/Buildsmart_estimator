@@ -232,24 +232,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Role Tabs (login mode only) */}
-          {mode === 'login' && (
-            <div style={styles.tabRow}>
-              <button
-                style={{ ...styles.tabBtn, ...(tab === 'builder' ? styles.tabBtnActive : {}) }}
-                onClick={() => setTab('builder')}
-              >
-                🏗 Builder
-              </button>
-              <button
-                style={{ ...styles.tabBtn, ...(tab === 'admin' ? styles.tabBtnActive : {}) }}
-                onClick={() => setTab('admin')}
-              >
-                🔐 Admin
-              </button>
-            </div>
-          )}
-
           {/* Login Form */}
           {mode === 'login' && (
             <form onSubmit={handleLogin}>
@@ -259,7 +241,7 @@ export default function Login() {
                   style={styles.input}
                   type="email"
                   name="email"
-                  placeholder={tab === 'admin' ? 'admin@buildsmart.in' : 'builder@company.com'}
+                  placeholder="Enter your email address"
                   value={form.email}
                   onChange={handleChange}
                   autoComplete="email"
@@ -317,17 +299,15 @@ export default function Login() {
                 style={{ ...styles.submitBtn, opacity: loading ? 0.75 : 1 }}
                 disabled={loading}
               >
-                {loading ? 'Signing in...' : `Sign in as ${tab === 'admin' ? 'Admin' : 'Builder'} →`}
+                {loading ? 'Signing in...' : 'Sign in →'}
               </button>
 
-              {tab === 'builder' && (
-                <div style={styles.switchMode}>
-                  New builder?{' '}
-                  <button type="button" style={styles.linkBtn} onClick={() => { setMode('register'); setError(''); setSuccess(''); }}>
-                    Register here
-                  </button>
-                </div>
-              )}
+              <div style={styles.switchMode}>
+                New builder?{' '}
+                <button type="button" style={styles.linkBtn} onClick={() => { setMode('register'); setError(''); setSuccess(''); }}>
+                  Register here
+                </button>
+              </div>
             </form>
           )}
 

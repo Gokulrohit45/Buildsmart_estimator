@@ -2,15 +2,6 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
 import { adminAPI } from '../../services/api';
 
-const QUALITY_FACTORS = {
-  Budget: 0.85,
-  Standard: 1.0,
-  Premium: 1.15,
-  Luxury: 1.30,
-};
-
-const CITIES = ['', 'Bangalore', 'Mumbai', 'Hyderabad', 'Chennai', 'Pune', 'Delhi', 'Coimbatore', 'Ahmedabad', 'Kochi'];
-
 export default function RateMaster() {
   const [rates, setRates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,18 +12,17 @@ export default function RateMaster() {
   const [editVendor, setEditVendor] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [cityFilter, setCityFilter] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ city: 'Bangalore', material_code: '', rate: '', vendor: '' });
+  const [addForm, setAddForm] = useState({ city: 'Default', material_code: '', rate: '', vendor: '' });
 
   useEffect(() => {
     loadRates();
-  }, [cityFilter]);
+  }, []);
 
   const loadRates = async () => {
     try {
       setLoading(true);
-      const data = await adminAPI.getRates(cityFilter);
+      const data = await adminAPI.getRates('');
       setRates(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Failed to load rates.');
@@ -77,15 +67,15 @@ export default function RateMaster() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!addForm.city || !addForm.material_code || !addForm.rate) {
-      setError('City, material code, and rate are required.');
+    if (!addForm.material_code || !addForm.rate) {
+      setError('Material code and rate are required.');
       return;
     }
     try {
-      const created = await adminAPI.addRate({ ...addForm, rate: Number(addForm.rate) });
+      const created = await adminAPI.addRate({ ...addForm, city: 'Default', rate: Number(addForm.rate) });
       setRates((prev) => [...prev, created.rate || created]);
       setShowAdd(false);
-      setAddForm({ city: 'Bangalore', material_code: '', rate: '', vendor: '' });
+      setAddForm({ city: 'Default', material_code: '', rate: '', vendor: '' });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -133,7 +123,7 @@ export default function RateMaster() {
           <div>
             <div className="hero-banner-label">Configuration</div>
             <div className="hero-banner-title">Rate Master</div>
-            <div className="hero-banner-sub">Configure base rates for raw materials and labour across target cities</div>
+            <div className="hero-banner-sub">Configure base rates for raw materials and labour</div>
           </div>
           <div style={{ display: 'flex', gap: '8px', zIndex: 1 }}>
             <input
@@ -199,12 +189,6 @@ export default function RateMaster() {
           <div className="card-body">
             <form onSubmit={handleAdd} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">City *</label>
-                <select className="form-control" value={addForm.city} onChange={(e) => setAddForm((f) => ({ ...f, city: e.target.value }))}>
-                  {CITIES.filter(Boolean).map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Material Code *</label>
                 <input className="form-control" placeholder="e.g. cement, steel_tmt" value={addForm.material_code} onChange={(e) => setAddForm((f) => ({ ...f, material_code: e.target.value }))} />
               </div>
@@ -225,22 +209,22 @@ export default function RateMaster() {
         </div>
       )}
 
-      {/* Quality Factors Info */}
+      {/* Package Rates (Per Sqft) Card */}
       <div className="card" style={{ marginBottom: '24px', overflow: 'hidden' }}>
         <div style={{ height: '3px', background: 'linear-gradient(90deg, #d97706, #fbbf24)', width: '100%' }} />
         <div className="card-header" style={{ background: 'linear-gradient(to right, rgba(217,119,6,0.04), transparent)' }}>
           <div>
-            <div className="card-title">Quantity Factors (Per Sqft)</div>
-            <div className="card-subtitle">AI multiplier factors used for calculating project cost tiers</div>
+            <div className="card-title">Package Rates (Per Sqft)</div>
+            <div className="card-subtitle">Base construction package rates managed by system setting</div>
           </div>
         </div>
         <div className="card-body">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
             {[
-              { tier: 'Budget', factor: '0.85×', emoji: '💰', color: '#64748b' },
-              { tier: 'Standard', factor: '1.00×', emoji: '🏗️', color: '#0f766e' },
-              { tier: 'Premium', factor: '1.15×', emoji: '✨', color: '#2563eb' },
-              { tier: 'Luxury', factor: '1.30×', emoji: '👑', color: '#d97706' },
+              { tier: 'Base', rate: '₹2,100', emoji: '💰', color: '#64748b' },
+              { tier: 'Standard', rate: '₹2,400', emoji: '🏗️', color: '#0f766e' },
+              { tier: 'Premium', rate: '₹2,600', emoji: '✨', color: '#2563eb' },
+              { tier: 'Luxury', rate: '₹2,800', emoji: '👑', color: '#d97706' },
             ].map((item) => (
               <div key={item.tier} style={{
                 padding: '16px 14px', border: '1px solid var(--color-gray-200)',
@@ -251,7 +235,7 @@ export default function RateMaster() {
               >
                 <div style={{ fontSize: '24px', marginBottom: '6px' }}>{item.emoji}</div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.tier}</div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: item.color, marginTop: '4px' }}>{item.factor}</div>
+                <div style={{ fontSize: '22px', fontWeight: 900, color: item.color, marginTop: '4px' }}>{item.rate}</div>
               </div>
             ))}
           </div>
@@ -261,19 +245,8 @@ export default function RateMaster() {
       {/* Rate Table Card */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div className="card-title">City-wise Material Rates</div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <select
-              className="form-control"
-              style={{ width: '180px', height: '38px' }}
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-            >
-              <option value="">All Cities</option>
-              {CITIES.filter(Boolean).map((c) => <option key={c}>{c}</option>)}
-            </select>
-            <button className="btn btn-ghost btn-sm" onClick={loadRates} style={{ border: '1px solid var(--color-gray-200)' }}>↻ Refresh</button>
-          </div>
+          <div className="card-title">Material Rates</div>
+          <button className="btn btn-ghost btn-sm" onClick={loadRates} style={{ border: '1px solid var(--color-gray-200)' }}>↻ Refresh</button>
         </div>
 
         <div className="p-0">
@@ -282,26 +255,24 @@ export default function RateMaster() {
               <div style={{ padding: '20px 0' }}>
                 {[1, 2, 3].map((n) => (
                   <div key={n} className="skeleton-row">
-                    <div className="skeleton-line skeleton" style={{ width: '15%' }} />
-                    <div className="skeleton-line skeleton" style={{ width: '15%' }} />
+                    <div className="skeleton-line skeleton" style={{ width: '20%' }} />
                     <div className="skeleton-line skeleton" style={{ width: '25%' }} />
-                    <div className="skeleton-line skeleton" style={{ width: '8%' }} />
                     <div className="skeleton-line skeleton" style={{ width: '10%' }} />
-                    <div className="skeleton-line skeleton" style={{ width: '12%', marginLeft: 'auto' }} />
+                    <div className="skeleton-line skeleton" style={{ width: '12%' }} />
+                    <div className="skeleton-line skeleton" style={{ width: '15%', marginLeft: 'auto' }} />
                   </div>
                 ))}
               </div>
             ) : rates.length === 0 ? (
               <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-gray-400)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '10px' }}>🏙️</div>
+                <div style={{ fontSize: '40px', marginBottom: '10px' }}>📦</div>
                 <div style={{ fontWeight: 600, fontSize: '15px' }}>No rate entries found.</div>
-                <div style={{ fontSize: '12px', marginTop: '4px' }}>Try switching city filter or add a rate entry.</div>
+                <div style={{ fontSize: '12px', marginTop: '4px' }}>Add a rate entry to get started.</div>
               </div>
             ) : (
               <table>
                 <thead>
                   <tr style={{ background: 'linear-gradient(to right, #f0fdfa, #f1f5f9)' }}>
-                    <th style={{ color: '#0f766e' }}>City</th>
                     <th style={{ color: '#0f766e' }}>Material Code</th>
                     <th style={{ color: '#0f766e' }}>Material Name</th>
                     <th style={{ color: '#0f766e' }}>Unit</th>
@@ -327,7 +298,6 @@ export default function RateMaster() {
                         onMouseEnter={(e) => { if (!isEditing) e.currentTarget.style.background = '#f8fafc'; }}
                         onMouseLeave={(e) => { if (!isEditing) e.currentTarget.style.background = ''; }}
                       >
-                        <td className="td-bold">{r.city}</td>
                         <td className="text-muted td-mono" style={{ fontSize: '12px' }}>{r.material_code}</td>
                         <td style={{ fontWeight: 500 }}>{mat.material_name || r.material_code}</td>
                         <td className="text-muted">{mat.unit || '—'}</td>

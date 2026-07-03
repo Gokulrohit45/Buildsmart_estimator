@@ -101,6 +101,7 @@ export default function EstimateResult() {
   const tabs = [
     { id: 'overview',        label: '📐 Key Quantities' },
     { id: 'boq',             label: '📋 Bill of Quantities (BOQ)' },
+    { id: 'config_summary',  label: '📋 Configuration Summary' },
     { id: 'recommendations', label: `🤖 AI Recommendations (${(recommendations || []).length})` },
   ];
 
@@ -514,7 +515,18 @@ export default function EstimateResult() {
                   <tr><td className="td-bold">Cement ({result.input?.cementBrand || 'Standard Brand'})</td><td className="td-mono">{(quantities.cementBags || 0).toLocaleString()}</td><td>Bags (50kg)</td><td className="text-muted">Quality factor applied</td></tr>
                   <tr><td className="td-bold">Steel ({result.input?.steelGrade || 'Fe500'})</td><td className="td-mono">{(quantities.steelKg || 0).toLocaleString()}</td><td>Kg</td><td className="text-muted">TMT bars, quality factor applied</td></tr>
                   <tr><td className="td-bold">Sand ({result.input?.sandType || 'M-Sand'})</td><td className="td-mono">{(quantities.sandCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">For masonry &amp; plaster</td></tr>
-                  <tr><td className="td-bold">Coarse Aggregate</td><td className="td-mono">{(quantities.aggregateCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">20mm &amp; 40mm jelly</td></tr>
+                  {quantities.aggregate_40mm > 0 ? (
+                    <tr><td className="td-bold">40 mm Coarse Aggregate (For PCC &amp; Footings)</td><td className="td-mono">{(quantities.aggregate_40mm || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">40 mm Jelly</td></tr>
+                  ) : null}
+                  {quantities.aggregate_20mm > 0 ? (
+                    <tr><td className="td-bold">20 mm Coarse Aggregate (For RCC Works)</td><td className="td-mono">{(quantities.aggregate_20mm || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">20 mm Jelly</td></tr>
+                  ) : null}
+                  {quantities.aggregate_12mm > 0 ? (
+                    <tr><td className="td-bold">12 mm Coarse Aggregate (For Sunshades &amp; Small RCC Works)</td><td className="td-mono">{(quantities.aggregate_12mm || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">12 mm Jelly</td></tr>
+                  ) : null}
+                  {!quantities.aggregate_40mm && !quantities.aggregate_20mm && !quantities.aggregate_12mm ? (
+                    <tr><td className="td-bold">Coarse Aggregate</td><td className="td-mono">{(quantities.aggregateCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">20mm &amp; 40mm jelly</td></tr>
+                  ) : null}
                   <tr><td className="td-bold">{result.input?.brickType || 'Standard Blocks'}</td><td className="td-mono">{(quantities.blocksQty || 0).toLocaleString()}</td><td>Nos</td><td className="text-muted">Walling &amp; partition</td></tr>
                   <tr><td className="td-bold">Flooring ({result.input?.flooringType || 'Vitrified'})</td><td className="td-mono">{(quantities.tilesArea || 0).toLocaleString()}</td><td>Sqft</td><td className="text-muted">Includes wastage percentage</td></tr>
                   <tr><td className="td-bold">Paint ({result.input?.paintType || 'Premium Emulsion'})</td><td className="td-mono">{(quantities.paintLitres || 0).toLocaleString()}</td><td>Litres</td><td className="text-muted">Interior &amp; exterior walls</td></tr>
@@ -587,6 +599,87 @@ export default function EstimateResult() {
             </div>
           </div>
         </div>
+
+        {/* Room-wise specifications */}
+        {inputData.rooms_list && inputData.rooms_list.length > 0 && (
+          <div className="card" style={{ overflow:'hidden', marginTop: '24px' }}>
+            <div className="card-header" style={{
+              background:'linear-gradient(135deg, #f8fafc 0%, rgba(254,240,138,0.1) 100%)',
+              borderBottom:'1px solid var(--color-gray-100)',
+            }}>
+              <div className="card-title">🏠 Room-wise Specifications &amp; Fixtures</div>
+              <div className="card-subtitle">Granular breakdown of rooms configured per floor</div>
+            </div>
+            <div className="p-0">
+              <div className="table-wrapper" style={{ border: 'none', borderRadius: '0 0 12px 12px' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Floor</th>
+                      <th>Room Name</th>
+                      <th style={{ textAlign: 'right' }}>Dimensions</th>
+                      <th style={{ textAlign: 'right' }}>Area</th>
+                      <th style={{ textAlign: 'center' }}>Doors</th>
+                      <th style={{ textAlign: 'center' }}>Windows</th>
+                      <th style={{ textAlign: 'center' }}>Electrical Points</th>
+                      <th style={{ textAlign: 'center' }}>Plumbing Points</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inputData.rooms_list.map((r, idx) => {
+                      const floorObj = (inputData.floors_list || []).find(f => f.floor_num === r.floor_num);
+                      const floorName = floorObj ? (floorObj.floor_name || floorObj.name) : `Floor ${r.floor_num}`;
+                      
+                      const doorCount = (r.doors || []).reduce((sum, d) => sum + (parseInt(d.qty) || 0), 0);
+                      const windowCount = (r.windows || []).reduce((sum, w) => sum + (parseInt(w.qty) || 0), 0);
+                      
+                      const elec = r.electrical || {};
+                      const elecPoints = 
+                        (parseInt(elec.light_points) || 0) + 
+                        (parseInt(elec.fan_points) || 0) + 
+                        (parseInt(elec.plug_points) || 0) + 
+                        (parseInt(elec.switch_boards) || 0) + 
+                        (parseInt(elec.ac_points) || 0) + 
+                        (parseInt(elec.tv_points) || 0) + 
+                        (parseInt(elec.geyser_points) || 0) + 
+                        (parseInt(elec.exhaust_points) || 0) + 
+                        (parseInt(elec.exterior_light_points) || 0);
+
+                      const plumb = r.plumbing || {};
+                      const plumbPoints = 
+                        (parseInt(plumb.wc) || 0) + 
+                        (parseInt(plumb.wash_basin) || 0) + 
+                        (parseInt(plumb.shower) || 0) + 
+                        (parseInt(plumb.faucet) || 0) + 
+                        (parseInt(plumb.drain) || 0) + 
+                        (parseInt(plumb.tap) || 0) + 
+                        (parseInt(plumb.sink) || 0) + 
+                        (parseInt(plumb.inlet) || 0) + 
+                        (parseInt(plumb.drain_point) || 0) + 
+                        (parseInt(plumb.washing_machine) || 0) + 
+                        (parseInt(plumb.utility_sink) || 0);
+
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 600 }}>{floorName}</td>
+                          <td className="td-bold">{r.name}</td>
+                          <td style={{ textAlign: 'right' }}>{r.length} × {r.width} ft</td>
+                          <td className="td-mono" style={{ textAlign: 'right', color: '#0f766e', fontWeight: 600 }}>
+                            {(r.length * r.width).toLocaleString()} Sqft
+                          </td>
+                          <td style={{ textAlign: 'center' }}>{doorCount}</td>
+                          <td style={{ textAlign: 'center' }}>{windowCount}</td>
+                          <td style={{ textAlign: 'center' }}>{elecPoints}</td>
+                          <td style={{ textAlign: 'center' }}>{plumbPoints > 0 ? plumbPoints : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* PANEL 2: BOQ */}
@@ -608,21 +701,18 @@ export default function EstimateResult() {
                     <th>Description</th>
                     <th>Unit</th>
                     <th style={{ textAlign: 'right' }}>Qty</th>
-                    <th style={{ textAlign: 'right' }}>Rate (₹)</th>
-                    <th style={{ textAlign: 'right' }}>Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {CATEGORIES.map((cat) => {
                     const items = grouped[cat];
                     if (!items || items.length === 0) return null;
-                    const catTotal = items.reduce((s, i) => s + i.amount, 0);
                     const palette = CAT_PALETTE[cat] || CAT_PALETTE['Civil Works'];
                     return (
                       <>
                         <tr className="boq-group-header" key={`hdr-${cat}`}
                           style={{ background: palette.hdr }}>
-                          <td colSpan={6} style={{
+                          <td colSpan={4} style={{
                             color: palette.text, fontWeight:700,
                             borderLeft:`4px solid ${palette.accent}`,
                             paddingLeft:'14px', letterSpacing:'0.3px',
@@ -636,43 +726,15 @@ export default function EstimateResult() {
                             <td className="td-bold">{item.description}</td>
                             <td className="text-muted">{item.unit}</td>
                             <td className="td-mono" style={{ textAlign: 'right' }}>{item.qty.toLocaleString()}</td>
-                            <td className="td-mono" style={{ textAlign: 'right' }}>
-                              {item.rate === 0 ? <span style={{ color: '#0f766e', fontWeight: 600, fontSize: '11px' }}>Included</span> : item.rate.toLocaleString()}
-                            </td>
-                            <td className="td-mono td-bold" style={{ textAlign: 'right' }}>
-                              {item.amount === 0 ? <span style={{ color: '#0f766e', fontWeight: 600, fontSize: '11px' }}>Included</span> : item.amount.toLocaleString()}
-                            </td>
                           </tr>
                         ))}
-                        <tr style={{ background: 'var(--color-gray-50)' }}>
-                          <td colSpan={5} style={{ textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--color-gray-600)' }}>Subtotal — {cat}</td>
-                          <td className="td-mono td-bold" style={{ textAlign: 'right', color: palette.accent }}>{catTotal.toLocaleString()}</td>
-                        </tr>
                       </>
                     );
                   })}
                   
                   {/* Summary Totals */}
-                  <tr className="table-total" style={{ borderTop: '2px solid #0f766e' }}>
-                    <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600 }}>Subtotal (Civil + MEP + Finishes)</td>
-                    <td className="td-mono td-bold" style={{ textAlign: 'right' }}>{(costs.subtotal ?? 0).toLocaleString()}</td>
-                  </tr>
-                  <tr className="table-total">
-                    <td colSpan={5} style={{ textAlign: 'right' }}>Contingency Buffer (@ {costs.contingencyPct ?? result.contingency_pct ?? 5}%)</td>
-                    <td className="td-mono" style={{ textAlign: 'right' }}>{(costs.contingency ?? result.contingency_amount ?? 0).toLocaleString()}</td>
-                  </tr>
-                  {((costs.builderMargin !== undefined && costs.builderMargin > 0) || costs.builder_margin !== undefined) && (
-                    <tr className="table-total">
-                      <td colSpan={5} style={{ textAlign: 'right' }}>Builder Profit Margin (@ {costs.builderMarginPct ?? 10}%)</td>
-                      <td className="td-mono" style={{ textAlign: 'right' }}>{(costs.builderMargin ?? 0).toLocaleString()}</td>
-                    </tr>
-                  )}
-                  <tr className="table-total">
-                    <td colSpan={5} style={{ textAlign: 'right' }}>GST / Taxes (@ {costs.gstPct ?? result.gst_pct ?? 18}%)</td>
-                    <td className="td-mono" style={{ textAlign: 'right' }}>{(costs.gst ?? result.gst_amount ?? 0).toLocaleString()}</td>
-                  </tr>
-                  <tr className="table-total" style={{ background: 'rgba(15,118,110,0.06)' }}>
-                    <td colSpan={5} style={{ textAlign: 'right', fontSize: '14px', color: 'var(--color-primary)', fontWeight: 800 }}>GRAND TOTAL ESTIMATE</td>
+                  <tr className="table-total" style={{ background: 'rgba(15,118,110,0.06)', borderTop: '2px solid #0f766e' }}>
+                    <td colSpan={3} style={{ textAlign: 'right', fontSize: '14px', color: 'var(--color-primary)', fontWeight: 800 }}>GRAND TOTAL ESTIMATE</td>
                     <td className="td-mono" style={{ textAlign: 'right', fontSize: '15px', color: 'var(--color-primary)', fontWeight: 800 }}>{(costs.grandTotal ?? result.grand_total ?? 0).toLocaleString()}</td>
                   </tr>
                 </tbody>
@@ -733,6 +795,234 @@ export default function EstimateResult() {
             );
           })}
         </div>
+      </div>
+
+      {/* PANEL 4: Configuration Summary */}
+      <div className={`tab-panel ${activeTab === 'config_summary' ? 'web-visible' : 'web-hidden'}`}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+          
+          {/* Section 1: Project & Package Info */}
+          <div className="card" style={{ padding: '20px' }}>
+            <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-primary)', borderBottom: '2.5px solid #0f766e', paddingBottom: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>🏢</span> Project &amp; Package Details
+            </div>
+            <div style={{ display: 'grid', gap: '10px', fontSize: '13px' }}>
+              <div><strong>Project Name:</strong> {inputData.project_name || '—'}</div>
+              <div><strong>Customer Name:</strong> {inputData.customer_name || '—'}</div>
+              <div><strong>Mobile Number:</strong> {inputData.customer_mobile || '—'}</div>
+              <div><strong>Email Address:</strong> {inputData.customer_email || '—'}</div>
+              <div><strong>Site Address:</strong> {inputData.project_address || '—'}</div>
+              <div><strong>District:</strong> {inputData.district || '—'}</div>
+              <div><strong>State:</strong> {inputData.state || 'Tamil Nadu'}</div>
+              <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(15,118,110,0.06)', borderRadius: '8px', border: '1px solid rgba(15,118,110,0.15)' }}>
+                <strong>Chosen Package:</strong> <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{summary.quality} Tier</span> (₹{summary.quality === 'Base' ? 2100 : summary.quality === 'Standard' ? 2400 : summary.quality === 'Premium' ? 2600 : 2800}/sq.ft)
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Property & Structure Dimensions */}
+          <div className="card" style={{ padding: '20px' }}>
+            <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-primary)', borderBottom: '2.5px solid #0f766e', paddingBottom: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📐</span> Dimensions &amp; Structure
+            </div>
+            <div style={{ display: 'grid', gap: '10px', fontSize: '13px' }}>
+              <div><strong>Plot Dimensions:</strong> {inputData.plot_length} ft × {inputData.plot_width} ft</div>
+              <div><strong>Plot Area:</strong> {((inputData.plot_length || 0) * (inputData.plot_width || 0)).toLocaleString()} sq.ft</div>
+              <div><strong>Number of Floors:</strong> {inputData.floors || 1}</div>
+              <div><strong>Covered Portico Area:</strong> {summary.porticoArea || 0} sq.ft ({inputData.portico_length}x{inputData.portico_width} ft)</div>
+              <div><strong>Staircase Area:</strong> {summary.staircaseArea || 0} sq.ft ({inputData.staircase_length}x{inputData.staircase_width} ft)</div>
+              <div><strong>Structure Type:</strong> {inputData.structure_type || 'RCC Frame'}</div>
+              <div><strong>Soil Condition:</strong> {inputData.soil_type || 'Normal Soil'}</div>
+            </div>
+          </div>
+
+          {/* Section 3: Material Specifications */}
+          <div className="card" style={{ padding: '20px' }}>
+            <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-primary)', borderBottom: '2.5px solid #0f766e', paddingBottom: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>🧱</span> Material Selection
+            </div>
+            <div style={{ display: 'grid', gap: '10px', fontSize: '13px' }}>
+              <div><strong>Walling Material:</strong> {inputData.brick_type || 'AAC Blocks'}</div>
+              <div><strong>Cement Brand:</strong> {inputData.cementBrand || 'UltraTech'}</div>
+              <div><strong>Steel Reinforcement:</strong> {inputData.steelBrand || 'Tata Tiscon'}</div>
+              <div><strong>Sand Type (RCC):</strong> {inputData.sand_type_rcc || 'M-Sand'}</div>
+              <div><strong>Sand Type (Plaster):</strong> {inputData.sand_type_plaster || 'P-Sand'}</div>
+              <div><strong>Tiles Brand Selected:</strong> {inputData.tilesBrand || 'Kajaria'}</div>
+              <div>
+                <strong>Selected Coarse Aggregates (Jelly):</strong>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                  {(inputData.selected_aggregates || []).map(sz => (
+                    <span key={sz} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                      {sz === '40mm' ? '40 mm Jelly' : sz === '20mm' ? '20 mm Jelly' : '12 mm Jelly'}
+                    </span>
+                  ))}
+                  {(!inputData.selected_aggregates || inputData.selected_aggregates.length === 0) && <span style={{ color: '#94a3b8' }}>None</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Floor-wise layout specs */}
+        <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
+          <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-primary)', borderBottom: '2.5px solid #0f766e', paddingBottom: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>📋</span> Floor-wise Room Layout Details
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ padding: '10px', textAlign: 'left' }}>Floor</th>
+                  <th style={{ padding: '10px', textAlign: 'left' }}>Room Name</th>
+                  <th style={{ padding: '10px', textAlign: 'right' }}>Dimensions</th>
+                  <th style={{ padding: '10px', textAlign: 'right' }}>Area</th>
+                  <th style={{ padding: '10px', textAlign: 'center' }}>Tiles Package</th>
+                  <th style={{ padding: '10px', textAlign: 'center' }}>Doors</th>
+                  <th style={{ padding: '10px', textAlign: 'center' }}>Windows</th>
+                  <th style={{ padding: '10px', textAlign: 'center' }}>MEP points</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(inputData.rooms_list || []).map((r, i) => {
+                  const floorObj = (inputData.floors_list || []).find(f => f.floor_num === r.floor_num);
+                  const floorName = floorObj ? (floorObj.floor_name || floorObj.name) : `Floor ${r.floor_num}`;
+                  
+                  const doorCount = (r.doors || []).reduce((sum, d) => sum + (parseInt(d.qty) || 0), 0);
+                  const windowCount = (r.windows || []).reduce((sum, w) => sum + (parseInt(w.qty) || 0), 0);
+                  
+                  const elec = r.electrical || {};
+                  const elecPoints = 
+                    (parseInt(elec.light_points) || 0) + 
+                    (parseInt(elec.fan_points) || 0) + 
+                    (parseInt(elec.plug_points) || 0) + 
+                    (parseInt(elec.switch_boards) || 0) + 
+                    (parseInt(elec.ac_points) || 0) + 
+                    (parseInt(elec.tv_points) || 0) + 
+                    (parseInt(elec.geyser_points) || 0) + 
+                    (parseInt(elec.exhaust_points) || 0);
+
+                  const plumb = r.plumbing || {};
+                  const plumbPoints = 
+                    (parseInt(plumb.wc) || 0) + 
+                    (parseInt(plumb.wash_basin) || 0) + 
+                    (parseInt(plumb.shower) || 0) + 
+                    (parseInt(plumb.faucet) || 0) + 
+                    (parseInt(plumb.tap) || 0) + 
+                    (parseInt(plumb.sink) || 0);
+
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px', fontWeight: 600 }}>{floorName}</td>
+                      <td style={{ padding: '10px' }}>{r.name}</td>
+                      <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'monospace' }}>{r.length} × {r.width} ft</td>
+                      <td style={{ padding: '10px', textAlign: 'right', fontWeight: 600 }}>{r.length * r.width} sq.ft</td>
+                      <td style={{ padding: '10px', textAlign: 'center' }}>
+                        <span style={{ background: '#f0fdf4', color: '#166534', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
+                          {r.tiles_package || 'Standard'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'center' }}>{doorCount} ({(r.doors || [])[0]?.type || '—'})</td>
+                      <td style={{ padding: '10px', textAlign: 'center' }}>{windowCount} ({(r.windows || [])[0]?.type || '—'})</td>
+                      <td style={{ padding: '10px', textAlign: 'center' }}>⚡ {elecPoints} pts / 🚰 {plumbPoints} pts</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Section 4: Add-ons Specification list */}
+        <div className="card" style={{ padding: '20px' }}>
+          <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-primary)', borderBottom: '2.5px solid #0f766e', paddingBottom: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🛠️</span> Optional Add-ons Selection
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', fontSize: '13px' }}>
+            
+            {/* Compound Wall */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_compound_wall ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🧱 Compound Wall</div>
+              {inputData.has_compound_wall ? (
+                <>
+                  <div><strong>Dimensions:</strong> {inputData.compound_wall_length} ft length, {inputData.compound_wall_height} ft height</div>
+                  <div><strong>Area:</strong> {(inputData.compound_wall_length || 0) * (inputData.compound_wall_height || 0)} sq.ft</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* Entrance Gate */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_gate ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🚪 Entrance Gate</div>
+              {inputData.has_gate ? (
+                <>
+                  <div><strong>Dimensions:</strong> {inputData.gate_width} ft width, {inputData.gate_height} ft height</div>
+                  <div><strong>Package:</strong> {inputData.gate_package} Quality</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* Sump Tank */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_water_tank ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🚰 Underground Sump</div>
+              {inputData.has_water_tank ? (
+                <div><strong>Capacity:</strong> {inputData.water_tank_capacity} Litres</div>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* Septic Tank */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: '#f0fdf4' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🚽 Septic Tank (Compulsory)</div>
+              <div><strong>Capacity:</strong> {inputData.septic_tank_capacity} Litres</div>
+            </div>
+
+            {/* Front Elevation */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_front_elevation ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>📐 Front Elevation Facade</div>
+              {inputData.has_front_elevation ? (
+                <>
+                  <div><strong>Dimensions:</strong> {inputData.front_elevation_width} ft width, {inputData.front_elevation_height} ft height</div>
+                  <div><strong>Package:</strong> {inputData.front_elevation_package} Quality</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* False Ceiling */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_false_ceiling ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>📐 False Ceiling</div>
+              {inputData.has_false_ceiling ? (
+                <>
+                  <div><strong>Covered Area:</strong> {inputData.false_ceiling_area} sq.ft</div>
+                  <div><strong>Package:</strong> {inputData.false_ceiling_package} Quality</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* Wardrobes */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_wardrobes ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🚪 Wardrobes &amp; Loft Cover</div>
+              {inputData.has_wardrobes ? (
+                <>
+                  <div><strong>Covered Area:</strong> {inputData.wardrobe_area} sq.ft</div>
+                  <div><strong>Material Type:</strong> {inputData.wardrobe_type} ({inputData.wardrobe_quality})</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* Modular Kitchen */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_modular_kitchen ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🍳 Modular Kitchen</div>
+              {inputData.has_modular_kitchen ? (
+                <>
+                  <div><strong>Kitchen Area:</strong> {inputData.modular_kitchen_area} sq.ft</div>
+                  <div><strong>Package:</strong> {inputData.modular_kitchen_package} Quality</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </Layout>
   );
