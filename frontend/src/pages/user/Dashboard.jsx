@@ -40,13 +40,7 @@ export default function Dashboard() {
     return s + (latest?.grand_total || 0);
   }, 0);
 
-  const avgCostPerSqft = projects.length > 0
-    ? Math.round(projects.reduce((s, p) => {
-        const est = (p.estimates || [])[0];
-        const sqft = p.total_sqft || 1;
-        return s + (est ? est.grand_total / sqft : 0);
-      }, 0) / projects.length)
-    : 0;
+
 
   return (
     <Layout role="builder">
@@ -208,21 +202,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Avg Cost / Sqft */}
-        <div
-          className="stat-card"
-          style={{ borderLeft: '4px solid #d97706', transition: 'transform 0.2s, box-shadow 0.2s' }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(217,119,6,0.18)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}
-        >
-          <div className="stat-icon amber" style={{ background: 'linear-gradient(135deg, #d97706, #fbbf24)' }}>📐</div>
-          <div className="stat-content">
-            <div className="stat-label">Avg. Cost / Sqft</div>
-            <div className="stat-value">
-              {loading ? '—' : avgCostPerSqft > 0 ? `₹${avgCostPerSqft.toLocaleString()}` : '—'}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ── Error ──────────────────────────────────────────────────── */}
