@@ -15,10 +15,95 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStep, setForgotStep] = useState(1); // 1: Send OTP, 2: Verify OTP, 3: Reset Password
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [newForgotPwd, setNewForgotPwd] = useState('');
+  const [confirmForgotPwd, setConfirmForgotPwd] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError('');
     setSuccess('');
+  };
+
+  const handleSendOtp = async (e) => {
+    if (e) e.preventDefault();
+    if (!forgotEmail.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await authAPI.forgotPassword(forgotEmail.trim());
+      setSuccess('A 6-digit OTP code has been sent to your email.');
+      setForgotStep(2);
+      setResendTimer(60);
+      const timer = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Please verify your email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!forgotOtp.trim()) {
+      setError('Please enter the 6-digit OTP.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await authAPI.verifyOtp(forgotEmail.trim(), forgotOtp.trim());
+      setSuccess('OTP verified! Please enter your new password.');
+      setForgotStep(3);
+    } catch (err) {
+      setError(err.message || 'Verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!newForgotPwd || !confirmForgotPwd) {
+      setError('Please fill in all password fields.');
+      return;
+    }
+    if (newForgotPwd.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newForgotPwd !== confirmForgotPwd) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await authAPI.resetPassword(forgotEmail.trim(), forgotOtp.trim(), newForgotPwd);
+      setSuccess('Password has been reset successfully! You can now log in.');
+      setMode('login');
+    } catch (err) {
+      setError(err.message || 'Failed to reset password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogin = async (e) => {
@@ -183,6 +268,22 @@ export default function Login() {
               <div style={styles.formGroup}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={styles.label}>Password</label>
+                  <button
+                    type="button"
+                    style={styles.forgotBtn}
+                    onClick={() => {
+                      setMode('forgot');
+                      setForgotEmail(form.email);
+                      setForgotStep(1);
+                      setForgotOtp('');
+                      setNewForgotPwd('');
+                      setConfirmForgotPwd('');
+                      setError('');
+                      setSuccess('');
+                    }}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -299,6 +400,131 @@ export default function Login() {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* Forgot Password Flow */}
+          {mode === 'forgot' && (
+            <div>
+              <div style={styles.cardHeader}>
+                <div style={styles.cardTitle}>Reset Password</div>
+                <div style={styles.cardSub}>
+                  {forgotStep === 1 && 'Enter your email to receive a password reset OTP'}
+                  {forgotStep === 2 && `Enter the 6-digit OTP sent to ${forgotEmail}`}
+                  {forgotStep === 3 && 'Enter and confirm your new password'}
+                </div>
+              </div>
+
+              {forgotStep === 1 && (
+                <form onSubmit={handleSendOtp}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Email Address</label>
+                    <input
+                      style={styles.input}
+                      type="email"
+                      placeholder="builder@company.com"
+                      value={forgotEmail}
+                      onChange={(e) => { setForgotEmail(e.target.value); setError(''); setSuccess(''); }}
+                      required
+                    />
+                  </div>
+
+                  {error && <div style={styles.errorBox}>⚠ {error}</div>}
+                  {success && <div style={styles.successBox}>✓ {success}</div>}
+
+                  <button
+                    type="submit"
+                    style={{ ...styles.submitBtn, opacity: loading ? 0.75 : 1 }}
+                    disabled={loading}
+                  >
+                    {loading ? 'Sending...' : 'Send OTP via Email →'}
+                  </button>
+                </form>
+              )}
+
+              {forgotStep === 2 && (
+                <form onSubmit={handleVerifyOtp}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>One-Time Password (OTP)</label>
+                    <input
+                      style={{ ...styles.input, textAlign: 'center', letterSpacing: '4px', fontSize: '18px', fontWeight: 'bold' }}
+                      type="text"
+                      placeholder="000000"
+                      maxLength={6}
+                      value={forgotOtp}
+                      onChange={(e) => { setForgotOtp(e.target.value.replace(/\D/g, '')); setError(''); setSuccess(''); }}
+                      required
+                    />
+                  </div>
+
+                  {error && <div style={styles.errorBox}>⚠ {error}</div>}
+                  {success && <div style={styles.successBox}>✓ {success}</div>}
+
+                  <button
+                    type="submit"
+                    style={{ ...styles.submitBtn, opacity: loading ? 0.75 : 1 }}
+                    disabled={loading}
+                  >
+                    {loading ? 'Verifying...' : 'Verify OTP Code →'}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      style={{ ...styles.linkBtn, color: resendTimer > 0 ? 'rgba(255,255,255,0.3)' : '#2dd4bf' }}
+                      onClick={handleSendOtp}
+                      disabled={resendTimer > 0 || loading}
+                    >
+                      {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : 'Resend OTP'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {forgotStep === 3 && (
+                <form onSubmit={handleResetPassword}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>New Password</label>
+                    <input
+                      style={styles.input}
+                      type="password"
+                      placeholder="Minimum 6 characters"
+                      value={newForgotPwd}
+                      onChange={(e) => { setNewForgotPwd(e.target.value); setError(''); setSuccess(''); }}
+                      required
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Confirm New Password</label>
+                    <input
+                      style={styles.input}
+                      type="password"
+                      placeholder="Re-enter new password"
+                      value={confirmForgotPwd}
+                      onChange={(e) => { setConfirmForgotPwd(e.target.value); setError(''); setSuccess(''); }}
+                      required
+                    />
+                  </div>
+
+                  {error && <div style={styles.errorBox}>⚠ {error}</div>}
+                  {success && <div style={styles.successBox}>✓ {success}</div>}
+
+                  <button
+                    type="submit"
+                    style={{ ...styles.submitBtn, opacity: loading ? 0.75 : 1 }}
+                    disabled={loading}
+                  >
+                    {loading ? 'Resetting...' : 'Reset Password & Log In →'}
+                  </button>
+                </form>
+              )}
+
+              <div style={styles.switchMode}>
+                Remembered your password?{' '}
+                <button type="button" style={styles.linkBtn} onClick={() => { setMode('login'); setError(''); setSuccess(''); }}>
+                  Back to Sign In
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -431,6 +657,10 @@ const styles = {
   linkBtn: {
     background: 'none', border: 'none', color: '#2dd4bf', fontWeight: 600, fontSize: '12px',
     cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+  },
+  forgotBtn: {
+    background: 'none', border: 'none', color: '#2dd4bf', fontWeight: 600, fontSize: '11px',
+    cursor: 'pointer', fontFamily: 'inherit', padding: 0, textTransform: 'uppercase', letterSpacing: '0.05em',
   },
   footerNote: { marginTop: '18px', fontSize: '11px', color: 'rgba(255,255,255,0.25)', textAlign: 'center' },
 };

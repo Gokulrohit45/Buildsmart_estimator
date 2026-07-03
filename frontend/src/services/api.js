@@ -52,6 +52,15 @@ export const authAPI = {
     request('POST', '/api/auth/register', payload),
 
   me: () => request('GET', '/api/auth/me'),
+
+  forgotPassword: (email) =>
+    request('POST', '/api/auth/forgot-password', { email }),
+
+  verifyOtp: (email, otp) =>
+    request('POST', '/api/auth/verify-otp', { email, otp }),
+
+  resetPassword: (email, otp, password) =>
+    request('POST', '/api/auth/reset-password', { email, otp, password }),
 };
 
 // ── Projects API ─────────────────────────────────────────────

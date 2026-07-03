@@ -206,3 +206,206 @@ def me():
 
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/auth/forgot-password
+# ---------------------------------------------------------------------------
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    """
+    Generate and send email OTP to reset user password.
+    Body: { email }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        email = data.get('email', '').strip().lower()
+
+        if not email:
+            return jsonify({'error': 'Email address is required.'}), 400
+
+        # Check if the email exists in profiles
+        profile_response = (
+            supabase_admin
+            .table('profiles')
+            .select('id')
+            .eq('email', email)
+            .execute()
+        )
+        if not profile_response.data:
+            return jsonify({'error': 'No account found with this email address.'}), 404
+
+        # Generate 6-digit OTP
+        import random
+        from datetime import datetime, timedelta, timezone
+        otp = f"{random.randint(100000, 999999)}"
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+        # Upsert OTP (delete existing first to keep table clean)
+        supabase_admin.table('password_reset_otps').delete().eq('email', email).execute()
+        supabase_admin.table('password_reset_otps').insert({
+            'email': email,
+            'otp': otp,
+            'expires_at': expires_at.isoformat(),
+            'verified': False
+        }).execute()
+
+        # Send Email using Brevo REST API
+        import os
+        import requests
+        brevo_key = os.getenv('BREVO_API_KEY')
+        sender_email = os.getenv('BREVO_SENDER_EMAIL')
+        sender_name = os.getenv('BREVO_SENDER_NAME', 'Vtab square')
+
+        if not brevo_key or not sender_email:
+            return jsonify({'error': 'Email gateway is not configured on the server.'}), 500
+
+        payload = {
+            "sender": {"name": sender_name, "email": sender_email},
+            "to": [{"email": email}],
+            "subject": "Password Reset OTP - BuildSmart AI",
+            "htmlContent": f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h2 style="color: #0f766e; text-align: center;">BuildSmart AI Estimator</h2>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p>Hello,</p>
+                    <p>We received a request to reset your password. Use the following 6-digit One-Time Password (OTP) to proceed:</p>
+                    <div style="background-color: #f0fdfa; border: 1px solid #5eead4; border-radius: 6px; padding: 16px; text-align: center; margin: 20px 0;">
+                        <span style="font-size: 32px; font-weight: bold; color: #0f766e; letter-spacing: 6px;">{otp}</span>
+                    </div>
+                    <p style="color: #64748b; font-size: 13px;">This OTP is valid for 10 minutes. If you did not request a password reset, please ignore this email.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="font-size: 12px; color: #94a3b8; text-align: center;">© 2026 BuildSmart AI. Built for Indian Builders.</p>
+                </div>
+            </body>
+            </html>
+            """
+        }
+        headers = {
+            "api-key": brevo_key,
+            "content-type": "application/json",
+            "accept": "application/json"
+        }
+
+        response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
+        if response.status_code not in (200, 201, 202):
+            return jsonify({'error': 'Failed to send OTP email. Please try again later.'}), 502
+
+        return jsonify({'success': True, 'message': 'OTP sent to your email address.'}), 200
+
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/auth/verify-otp
+# ---------------------------------------------------------------------------
+@auth_bp.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    """
+    Verify OTP sent to user email.
+    Body: { email, otp }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        email = data.get('email', '').strip().lower()
+        otp = data.get('otp', '').strip()
+
+        if not email or not otp:
+            return jsonify({'error': 'Email and OTP are required.'}), 400
+
+        # Query OTP table
+        otp_response = (
+            supabase_admin
+            .table('password_reset_otps')
+            .select('*')
+            .eq('email', email)
+            .eq('otp', otp)
+            .execute()
+        )
+
+        if not otp_response.data:
+            return jsonify({'error': 'Invalid OTP code.'}), 400
+
+        otp_record = otp_response.data[0]
+
+        # Check expiry
+        from datetime import datetime, timezone
+        expires_at = datetime.fromisoformat(otp_record['expires_at'].replace('Z', '+00:00'))
+        if datetime.now(timezone.utc) > expires_at:
+            return jsonify({'error': 'OTP has expired. Please request a new one.'}), 400
+
+        # Mark as verified
+        supabase_admin.table('password_reset_otps').update({'verified': True}).eq('email', email).execute()
+
+        return jsonify({'success': True, 'message': 'OTP verified successfully.'}), 200
+
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/auth/reset-password
+# ---------------------------------------------------------------------------
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Reset password after OTP verification.
+    Body: { email, otp, password }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        email = data.get('email', '').strip().lower()
+        otp = data.get('otp', '').strip()
+        password = data.get('password', '')
+
+        if not email or not otp or not password:
+            return jsonify({'error': 'Email, OTP, and new password are required.'}), 400
+
+        if len(password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters.'}), 400
+
+        # Verify OTP record is marked as verified
+        otp_response = (
+            supabase_admin
+            .table('password_reset_otps')
+            .select('*')
+            .eq('email', email)
+            .eq('otp', otp)
+            .eq('verified', True)
+            .execute()
+        )
+
+        if not otp_response.data:
+            return jsonify({'error': 'OTP verification session not found or invalid.'}), 400
+
+        # Fetch profile user_id
+        profile_response = (
+            supabase_admin
+            .table('profiles')
+            .select('id')
+            .eq('email', email)
+            .single()
+            .execute()
+        )
+        profile = profile_response.data
+        if not profile:
+            return jsonify({'error': 'User profile not found.'}), 404
+
+        user_id = profile['id']
+
+        # Update password using admin client
+        supabase_admin.auth.admin.update_user_by_id(
+            user_id,
+            attributes={'password': password}
+        )
+
+        # Delete OTP record
+        supabase_admin.table('password_reset_otps').delete().eq('email', email).execute()
+
+        return jsonify({'success': True, 'message': 'Password has been reset successfully. You can now log in.'}), 200
+
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
