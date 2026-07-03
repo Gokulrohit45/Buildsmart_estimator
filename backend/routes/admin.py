@@ -453,6 +453,31 @@ def get_analytics():
             if row.get('location')
         })
 
+        # Query all estimates to calculate city stats
+        all_estimates_resp = (
+            supabase_admin
+            .table('estimates')
+            .select('grand_total, projects(location)')
+            .execute()
+        )
+        
+        city_map = {}
+        for est in (all_estimates_resp.data or []):
+            proj = est.get('projects') or {}
+            city = proj.get('location') or 'Unknown'
+            val = float(est.get('grand_total') or 0.0)
+            
+            if city not in city_map:
+                city_map[city] = {
+                    'city': city,
+                    'estimate_count': 0,
+                    'total_value': 0.0
+                }
+            city_map[city]['estimate_count'] += 1
+            city_map[city]['total_value'] += val
+            
+        city_stats = list(city_map.values())
+
         # Recent 10 estimates with joined project + profile info
         recent_resp = (
             supabase_admin
@@ -467,7 +492,6 @@ def get_analytics():
             .execute()
         )
 
-
         return jsonify({
             'success': True,
             'data': {
@@ -475,6 +499,7 @@ def get_analytics():
                 'total_estimates': total_estimates,
                 'unique_cities':   unique_cities,
                 'total_cities':    len(unique_cities),
+                'city_stats':      city_stats,
                 'recent_estimates': recent_resp.data or [],
             },
         }), 200

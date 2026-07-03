@@ -65,13 +65,11 @@ export default function AdminDashboard() {
     ? [
         { icon: '👥', label: 'Registered Builders', value: analytics.total_builders ?? '—', color: 'teal' },
         { icon: '📋', label: 'Total Estimates Generated', value: analytics.total_estimates ?? '—', color: 'blue' },
-        { icon: '₹', label: 'Total Estimate Value', value: analytics.total_value ? formatINR(analytics.total_value) : '—', color: 'green' },
         { icon: '🏙', label: 'Active Cities', value: analytics.total_cities ?? analytics.active_cities ?? '—', color: 'amber' },
       ]
     : [
         { icon: '👥', label: 'Registered Builders', value: '—', color: 'teal' },
         { icon: '📋', label: 'Total Estimates Generated', value: '—', color: 'blue' },
-        { icon: '₹', label: 'Total Estimate Value', value: '—', color: 'green' },
         { icon: '🏙', label: 'Active Cities', value: '—', color: 'amber' },
       ];
 
