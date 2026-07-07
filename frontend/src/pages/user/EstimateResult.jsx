@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
-import { formatINR } from '../../services/api';
+import { formatINR, estimatesAPI } from '../../services/api';
 
 const CATEGORIES = ['Civil Works', 'Labour', 'Flooring', 'Painting', 'Electrical', 'Plumbing', 'Interiors'];
 
@@ -45,11 +45,20 @@ export default function EstimateResult() {
   const navigate = useNavigate();
   const [result, setResult] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null); // { success: boolean, text: string }
 
   useEffect(() => {
     const stored = sessionStorage.getItem('bs_estimate');
-    if (stored) setResult(JSON.parse(stored));
-    else navigate('/new-estimate');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setResult((prev) => {
+        if (prev && prev.estimate_id === parsed.estimate_id) return prev;
+        return parsed;
+      });
+    } else {
+      navigate('/new-estimate');
+    }
   }, [navigate]);
 
   if (!result) return null;
@@ -94,6 +103,30 @@ export default function EstimateResult() {
   const recommendations = result.recommendations || result.output_json?.recommendations || [];
 
   const handlePrint = () => window.print();
+
+  const handleEmailPdf = async () => {
+    if (!result || !result.estimate_id) {
+      alert("Estimate ID not found. Generate the estimate first.");
+      return;
+    }
+
+    try {
+      setSendingEmail(true);
+      setEmailStatus(null);
+      
+      const res = await estimatesAPI.sharePdf(result.estimate_id);
+      
+      if (res && res.success) {
+        setEmailStatus({ success: true, text: res.message || 'Estimate emailed successfully!' });
+      } else {
+        throw new Error(res.error || 'Failed to send email.');
+      }
+    } catch (err) {
+      setEmailStatus({ success: false, text: err.message || 'Error occurred while emailing estimate.' });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   const handleExportExcel = () => {
     if (!result || !result.estimate_id) {
@@ -426,6 +459,22 @@ export default function EstimateResult() {
               🖨️ Print / PDF
             </button>
             <button
+              onClick={handleEmailPdf}
+              disabled={sendingEmail}
+              style={{
+                background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)',
+                color: '#34d399', borderRadius: '10px', padding: '9px 18px',
+                fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: '7px',
+                transition: 'all 0.2s',
+                opacity: sendingEmail ? 0.6 : 1,
+              }}
+              onMouseOver={e => !sendingEmail && (e.currentTarget.style.background='rgba(16,185,129,0.28)')}
+              onMouseOut={e => !sendingEmail && (e.currentTarget.style.background='rgba(16,185,129,0.15)')}
+            >
+              {sendingEmail ? '⏳ Sending...' : '📧 Email PDF'}
+            </button>
+            <button
               onClick={handleExportExcel}
               style={{
                 background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)',
@@ -442,6 +491,15 @@ export default function EstimateResult() {
             </button>
           </div>
         </div>
+
+        {emailStatus && (
+          <div className={`alert ${emailStatus.success ? 'alert-green' : 'alert-red'}`} style={{ marginTop: '16px' }}>
+            <span className="alert-icon">{emailStatus.success ? '✨' : '⚠️'}</span>
+            <div className="alert-body">
+              <div className="alert-title">{emailStatus.text}</div>
+            </div>
+          </div>
+        )}
 
         {/* Bottom row: quick summary values */}
         <div style={{

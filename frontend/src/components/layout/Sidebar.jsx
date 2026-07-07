@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getCurrentUser } from '../../services/api';
 
@@ -38,7 +39,16 @@ const ADMIN_NAV = [
 export default function Sidebar({ role = 'builder' }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = getCurrentUser();
+  const [user, setUser] = useState(getCurrentUser());
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUser(getCurrentUser());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const navGroups = role === 'admin' ? ADMIN_NAV : USER_NAV;
   const displayName = user?.company_name || user?.email || (role === 'admin' ? 'Admin User' : 'Builder Account');
   const displayRole = role === 'admin' ? 'Administrator' : 'Builder';
@@ -50,8 +60,8 @@ export default function Sidebar({ role = 'builder' }) {
         <div className="sidebar-logo-mark">
           <div className="logo-icon">BS</div>
           <div className="logo-text">
-            <span className="logo-name">BuildSmart</span>
-            <span className="logo-sub">AI Estimator</span>
+            <span className="logo-name">Buildsmart</span>
+            <span className="logo-sub" style={{ letterSpacing: '2.5px', fontWeight: '800', color: 'var(--color-teal-400)' }}>360</span>
           </div>
         </div>
       </div>
@@ -83,18 +93,22 @@ export default function Sidebar({ role = 'builder' }) {
       <div className="sidebar-footer">
         <div
           className="sidebar-user"
-          onClick={role === 'admin' ? () => navigate('/admin/settings') : undefined}
-          style={role === 'admin' ? { cursor: 'pointer' } : { cursor: 'default' }}
-          title={role === 'admin' ? "Account settings" : undefined}
+          onClick={() => navigate(role === 'admin' ? '/admin/settings' : '/settings')}
+          style={{ cursor: 'pointer' }}
+          title="Account settings"
         >
-          <div className="user-avatar">{(displayName[0] || '?').toUpperCase()}</div>
+          <div className="user-avatar" style={{ overflow: 'hidden' }}>
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              (displayName[0] || '?').toUpperCase()
+            )}
+          </div>
           <div className="user-info">
             <div className="user-name">{displayName}</div>
             <div className="user-role">{displayRole}</div>
           </div>
-          {role === 'admin' && (
-            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '14px', marginLeft: 'auto' }}>›</span>
-          )}
+          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '14px', marginLeft: 'auto' }}>›</span>
         </div>
       </div>
     </aside>

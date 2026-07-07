@@ -19,6 +19,10 @@ const DEFAULT_SETTINGS = {
   rate_front_elevation: '120',
   rate_interior: '150',
   rate_open_portico: '800',
+  rate_upper_water_tank_500l: '3000',
+  rate_upper_water_tank_1000l: '6000',
+  rate_upper_water_tank_1500l: '8500',
+  rate_upper_water_tank_2000l: '11000',
 
   // False Ceiling Rates
   rate_false_ceiling_base: '10',
@@ -97,6 +101,11 @@ const DEFAULT_SETTINGS = {
   include_water_tank_standard: 'false',
   include_water_tank_premium: 'false',
   include_water_tank_luxury: 'false',
+
+  include_upper_water_tank_base: 'false',
+  include_upper_water_tank_standard: 'false',
+  include_upper_water_tank_premium: 'false',
+  include_upper_water_tank_luxury: 'false',
 
   include_septic_tank_base: 'false',
   include_septic_tank_standard: 'false',
@@ -330,6 +339,22 @@ export default function SystemSettings() {
           <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_front_elevation || ''}
             onChange={(e) => set('rate_front_elevation', e.target.value)} disabled={loading} />
         </SettingRow>
+        <SettingRow label="Upper Water Tank Rate 500L (₹)" sublabel="Overhead tank price for 500 Litres capacity (Default is ₹3,000)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_upper_water_tank_500l || ''}
+            onChange={(e) => set('rate_upper_water_tank_500l', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Upper Water Tank Rate 1000L (₹)" sublabel="Overhead tank price for 1000 Litres capacity (Default is ₹6,000)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_upper_water_tank_1000l || ''}
+            onChange={(e) => set('rate_upper_water_tank_1000l', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Upper Water Tank Rate 1500L (₹)" sublabel="Overhead tank price for 1500 Litres capacity (Default is ₹8,500)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_upper_water_tank_1500l || ''}
+            onChange={(e) => set('rate_upper_water_tank_1500l', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Upper Water Tank Rate 2000L (₹)" sublabel="Overhead tank price for 2000 Litres capacity (Default is ₹11,000)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_upper_water_tank_2000l || ''}
+            onChange={(e) => set('rate_upper_water_tank_2000l', e.target.value)} disabled={loading} />
+        </SettingRow>
       </SectionCard>
 
       {/* False Ceiling Rates */}
@@ -475,6 +500,7 @@ export default function SystemSettings() {
                 { label: 'Compound Wall', key: 'compound_wall' },
                 { label: 'Entrance Gate', key: 'gate' },
                 { label: 'Underground Sump (Water Tank)', key: 'water_tank' },
+                { label: 'Upper Water Tank', key: 'upper_water_tank' },
                 { label: 'Septic Tank', key: 'septic_tank' },
                 { label: 'Front Elevation', key: 'front_elevation' },
                 { label: 'False Ceiling', key: 'false_ceiling' },
@@ -482,7 +508,7 @@ export default function SystemSettings() {
                 { label: 'Modular Kitchen', key: 'modular_kitchen' },
                 { label: 'Surkhi Weathering Course', key: 'surkhi' }
               ].map((feature, idx) => (
-                <tr key={feature.key} style={{ borderBottom: idx === 8 ? 'none' : '1px solid #1e293b' }}>
+                <tr key={feature.key} style={{ borderBottom: idx === 9 ? 'none' : '1px solid #1e293b' }}>
                   <td style={{ padding: '14px 16px', fontWeight: '500' }}>{feature.label}</td>
                   {['base', 'standard', 'premium', 'luxury'].map((pkg) => {
                     const settingKey = `include_${feature.key}_${pkg}`;

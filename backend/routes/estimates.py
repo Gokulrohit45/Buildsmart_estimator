@@ -9,6 +9,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from services.db import supabase_admin, get_supabase_user
 from services.estimator import calculate_estimate
+from services.pdf_generator import generate_estimate_pdf
 
 estimates_bp = Blueprint('estimates_bp', __name__, url_prefix='/api/estimates')
 
@@ -452,7 +453,7 @@ def export_estimate_excel(estimate_id):
         double_bottom = Border(bottom=Side(style='double', color='0F766E'), top=Side(style='thin', color='CBD5E1'))
 
         # Title block
-        ws1['A1'] = "BuildSmart AI Estimator - Project Quotation"
+        ws1['A1'] = "Buildsmart 360 - Project Quotation"
         ws1['A1'].font = title_font
         ws1.row_dimensions[1].height = 25
 
@@ -629,4 +630,146 @@ def export_estimate_excel(estimate_id):
         return jsonify({'error': str(ve)}), 401
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/estimates/<estimate_id>/share-pdf  –  email estimate PDF to client & builder
+# ---------------------------------------------------------------------------
+@estimates_bp.route('/<estimate_id>/share-pdf', methods=['POST'])
+def share_estimate_pdf(estimate_id):
+    """
+    Generate estimate PDF and email it to the builder and client.
+    Requires: Authorization: Bearer <token>
+    """
+    try:
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Missing or invalid Authorization header.'}), 401
+
+        token = auth_header[len('Bearer '):]
+        user_response = get_supabase_user(token)
+        user = user_response.user
+
+        if not user:
+            return jsonify({'error': 'Invalid or expired token.'}), 401
+
+        # 1. Fetch estimate header
+        est_res = (
+            supabase_admin
+            .table('estimates')
+            .select('*')
+            .eq('id', estimate_id)
+            .single()
+            .execute()
+        )
+        if not est_res.data:
+            return jsonify({'error': 'Estimate not found.'}), 404
+        estimate = est_res.data
+
+        # Verify builder ownership of project
+        project_res = (
+            supabase_admin
+            .table('projects')
+            .select('*')
+            .eq('id', estimate['project_id'])
+            .single()
+            .execute()
+        )
+        if not project_res.data or project_res.data['builder_id'] != user.id:
+            return jsonify({'error': 'Access denied.'}), 403
+        project = project_res.data
+
+        # 2. Fetch estimate items
+        items_res = (
+            supabase_admin
+            .table('estimate_items')
+            .select('*')
+            .eq('estimate_id', estimate_id)
+            .order('sort_order', desc=False)
+            .execute()
+        )
+        items = items_res.data or []
+
+        # 3. Generate PDF
+        pdf_bytes = generate_estimate_pdf(estimate, items)
+
+        # Base64 encode the PDF
+        import base64
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+
+        # 4. Determine emails
+        builder_email = user.email
+        inj = estimate.get('input_json') or {}
+        client_email = inj.get('customer_email') or inj.get('customerEmail')
+        
+        if not client_email:
+            return jsonify({'error': 'Client email is missing from estimate details.'}), 400
+
+        # Send Email using Brevo REST API
+        import os
+        import requests
+        brevo_key = os.getenv('BREVO_API_KEY')
+        sender_email = os.getenv('BREVO_SENDER_EMAIL')
+        sender_name = os.getenv('BREVO_SENDER_NAME', 'Vtab square')
+
+        if not brevo_key or not sender_email:
+            return jsonify({'error': 'Email gateway is not configured on the server.'}), 500
+
+        # Formulate HTML Email body
+        project_name = project.get('name', 'Residential project')
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <h2 style="color: #0f766e; text-align: center;">Buildsmart 360</h2>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p>Hello,</p>
+                <p>Please find attached the detailed construction cost estimate and Bill of Quantities (BOQ) for the project <b>{project_name}</b>.</p>
+                <p><b>Estimate Details:</b></p>
+                <ul>
+                    <li><b>Project Name:</b> {project_name}</li>
+                    <li><b>Location:</b> {project.get('location', 'India')}</li>
+                    <li><b>Total Built-up Area:</b> {project.get('total_sqft', '—')} Sqft</li>
+                    <li><b>Total Estimated Price:</b> Rs. {float(estimate.get('grand_total', 0)):,.2f}</li>
+                </ul>
+                <p>The detailed specifications and itemized cost breakdown are attached to this email as a PDF document.</p>
+                <p style="color: #64748b; font-size: 13px;">If you have any questions or require modifications, please contact the builder directly.</p>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                <p style="font-size: 12px; color: #94a3b8; text-align: center;">© 2026 Buildsmart 360. Built for Indian Builders.</p>
+            </div>
+        </body>
+        </html>
+        """
+
+        payload = {
+            "sender": {"name": sender_name, "email": sender_email},
+            "to": [
+                {"email": client_email, "name": (inj.get('customer_name') or 'Client')},
+                {"email": builder_email, "name": (user.email.split('@')[0] or 'Builder')}
+            ],
+            "subject": f"Construction Cost Estimate - {project_name}",
+            "htmlContent": html_content,
+            "attachment": [
+                {
+                    "content": pdf_base64,
+                    "name": f"Estimate_{project_name.replace(' ', '_')}.pdf"
+                }
+            ]
+        }
+
+        headers = {
+            "api-key": brevo_key,
+            "content-type": "application/json",
+            "accept": "application/json"
+        }
+
+        response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
+        if response.status_code not in (200, 201, 202):
+            return jsonify({'error': f'Failed to send email. Gateway returned code {response.status_code}'}), 502
+
+        return jsonify({'success': True, 'message': f'Estimate PDF successfully emailed to {client_email} and {builder_email}.'}), 200
+
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
 

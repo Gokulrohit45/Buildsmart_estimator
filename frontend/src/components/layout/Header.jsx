@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { clearAuthSession, getCurrentUser } from '../../services/api';
 
 const PAGE_TITLES = {
@@ -15,8 +16,16 @@ const PAGE_TITLES = {
 export default function Header({ role = 'user' }) {
   const navigate = useNavigate();
   const path = window.location.pathname;
-  const pageInfo = PAGE_TITLES[path] || { title: 'BuildSmart', sub: '' };
-  const user = getCurrentUser();
+  const pageInfo = PAGE_TITLES[path] || { title: 'Buildsmart 360', sub: '' };
+  const [user, setUser] = useState(getCurrentUser());
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUser(getCurrentUser());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const handleLogout = () => {
     clearAuthSession();
@@ -62,10 +71,16 @@ export default function Header({ role = 'user' }) {
             fontSize: '13px', fontWeight: '700', color: 'white', cursor: 'pointer',
             boxShadow: '0 2px 8px rgba(15,118,110,0.35)',
             flexShrink: 0,
+            overflow: 'hidden',
           }}
           title={user?.email}
+          onClick={() => navigate(role === 'admin' ? '/admin/settings' : '/settings')}
         >
-          {((user?.company_name || user?.email || 'U')[0]).toUpperCase()}
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            ((user?.company_name || user?.email || 'U')[0]).toUpperCase()
+          )}
         </div>
 
         {/* Sign out */}

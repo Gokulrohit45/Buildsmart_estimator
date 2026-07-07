@@ -179,6 +179,18 @@ export default function ProjectHistory() {
     }
   };
 
+  const handleUpdateStatus = async (projectId, newStatus) => {
+    try {
+      setError('');
+      await projectsAPI.updateStatus(projectId, newStatus);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
+      );
+    } catch (err) {
+      setError(err.message || 'Failed to update project status.');
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this project and all its estimates?')) return;
     setDeleting(id);
@@ -297,6 +309,7 @@ export default function ProjectHistory() {
                     <th style={{ color: '#0f766e' }}>Total Estimate</th>
                     <th style={{ color: '#0f766e' }}>Cost/Sqft</th>
                     <th style={{ color: '#0f766e' }}>Date</th>
+                    <th style={{ color: '#0f766e', textAlign: 'center' }}>Status</th>
                     <th style={{ color: '#0f766e', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -349,8 +362,19 @@ export default function ProjectHistory() {
                             {date}
                           </span>
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge ${
+                            p.status === 'Approved' ? 'badge-green' :
+                            p.status === 'Rejected' ? 'badge-red' :
+                            p.status === 'Sent' ? 'badge-blue' : 'badge-gray'
+                          }`}>
+                            {p.status === 'Approved' ? 'Client Approved' :
+                             p.status === 'Rejected' ? 'Client Rejected' :
+                             p.status || 'Draft'}
+                          </span>
+                        </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                             <button
                               className="btn btn-secondary btn-sm"
                               onClick={() => handleOpenEstimate(p, latestEst)}
@@ -359,12 +383,40 @@ export default function ProjectHistory() {
                             >
                               {openingId === latestEst?.id ? '⏳ Loading...' : '📂 Open'}
                             </button>
+                            {p.status !== 'Approved' && p.status !== 'Rejected' && (
+                              <>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  style={{
+                                    color: '#10b981',
+                                    padding: '4px 6px',
+                                    fontSize: '15px'
+                                  }}
+                                  onClick={() => handleUpdateStatus(p.id, 'Approved')}
+                                  title="Mark Client Approved"
+                                >
+                                  ✅
+                                </button>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  style={{
+                                    color: '#ef4444',
+                                    padding: '4px 6px',
+                                    fontSize: '15px'
+                                  }}
+                                  onClick={() => handleUpdateStatus(p.id, 'Rejected')}
+                                  title="Mark Client Rejected"
+                                >
+                                  ❌
+                                </button>
+                              </>
+                            )}
                             <button
                               className="btn btn-ghost btn-sm"
                               style={{
                                 color: 'var(--color-danger)',
                                 opacity: deleting === p.id ? 0.5 : 1,
-                                padding: '4px 8px',
+                                padding: '4px 6px',
                               }}
                               onClick={() => handleDelete(p.id)}
                               disabled={deleting === p.id}

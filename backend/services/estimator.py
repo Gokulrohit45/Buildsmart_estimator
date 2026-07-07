@@ -284,6 +284,7 @@ def calculate_estimate(params: dict) -> dict:
     is_wardrobes_included = settings.get(f"include_wardrobes_{quality_lower}") == "true"
     is_modular_kitchen_included = settings.get(f"include_modular_kitchen_{quality_lower}") == "true"
     is_surkhi_included = settings.get(f"include_surkhi_{quality_lower}") == "true"
+    is_upper_water_tank_included = settings.get(f"include_upper_water_tank_{quality_lower}") == "true"
 
     # Compound Wall (with toggle control)
     has_compound_wall = bool(params.get("has_compound_wall"))
@@ -397,6 +398,23 @@ def calculate_estimate(params: dict) -> dict:
         qty_lime_bags = round(surkhi_area * 0.05, 1)
         qty_brick_bats_cft = round(surkhi_area * 0.12, 1)
 
+    # Upper Water Tank (with toggle control)
+    has_upper_water_tank = bool(params.get("has_upper_water_tank"))
+    upper_water_tank_capacity = str(params.get("upper_water_tank_capacity") or "1000L")
+    
+    # Retrieve the rate from settings based on capacity (e.g. rate_upper_water_tank_1000l)
+    capacity_lower = upper_water_tank_capacity.lower()
+    upper_water_tank_rate_key = f"rate_upper_water_tank_{capacity_lower}"
+    
+    # Defaults: 500l: 3000, 1000l: 6000, 1500l: 8500, 2000l: 11000
+    default_upper_rates = {"500l": 3000.0, "1000l": 6000.0, "1500l": 8500.0, "2000l": 11000.0}
+    upper_water_tank_rate = float(settings.get(upper_water_tank_rate_key) or default_upper_rates.get(capacity_lower, 6000.0))
+
+    if is_upper_water_tank_included:
+        upper_water_tank_cost = 0.0
+    else:
+        upper_water_tank_cost = upper_water_tank_rate if (has_upper_water_tank and upper_water_tank_capacity) else 0.0
+
     # Interior Cost is removed as requested
     interior_cost = 0.0
 
@@ -472,7 +490,8 @@ def calculate_estimate(params: dict) -> dict:
     # Subtotals
     additional_subtotal = (
         compound_wall_cost + gate_cost + water_tank_cost + septic_tank_cost +
-        elevation_cost + false_ceiling_cost + wardrobe_cost + modular_kitchen_cost
+        elevation_cost + false_ceiling_cost + wardrobe_cost + modular_kitchen_cost +
+        surkhi_cost + upper_water_tank_cost
     )
     subtotal = construction_cost + additional_subtotal + total_tiles_cost
 
@@ -670,6 +689,14 @@ def calculate_estimate(params: dict) -> dict:
 
     if interior_cost > 0:
         boq_items.append({"category": "Additional Works", "code": "AD-010", "description": f"Additional Interior Decoration Works ({interior_package} Package)", "unit": "Sqft", "qty": interior_area, "rate": round(interior_rate), "amount": round(interior_cost)})
+
+    if upper_water_tank_cost > 0 or (has_upper_water_tank and is_upper_water_tank_included):
+        desc = f"Upper Overhead Water Tank (Capacity: {upper_water_tank_capacity})"
+        if is_upper_water_tank_included:
+            desc += " (Cost Included in Package)"
+            boq_items.append({"category": "Additional Works", "code": "AD-011", "description": desc, "unit": "Nos", "qty": 1, "rate": 0, "amount": 0})
+        else:
+            boq_items.append({"category": "Additional Works", "code": "AD-011", "description": desc, "unit": "Nos", "qty": 1, "rate": round(upper_water_tank_rate), "amount": round(upper_water_tank_cost)})
 
     for idx, item in enumerate(boq_items):
         item["sort_order"] = idx

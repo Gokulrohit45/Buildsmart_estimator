@@ -248,3 +248,56 @@ def get_public_settings():
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 
+
+# ---------------------------------------------------------------------------
+# PUT /api/projects/<project_id>/status  –  update a project's status
+# ---------------------------------------------------------------------------
+@projects_bp.route('/<project_id>/status', methods=['PUT'])
+def update_project_status(project_id):
+    """
+    Update the status of a project if it belongs to the authenticated builder.
+    Body: { status }
+    """
+    try:
+        user_id = get_user_id_from_token(request)
+        data = request.get_json(force=True) or {}
+        status = data.get('status')
+
+        if not status:
+            return jsonify({'error': 'Status is required.'}), 400
+
+        # Validate status allowed values: 'Draft', 'Sent', 'Approved', 'Rejected'
+        normalized_status = status
+        if status == 'Client Approved':
+            normalized_status = 'Approved'
+        elif status == 'Client Rejected':
+            normalized_status = 'Rejected'
+
+        if normalized_status not in ['Draft', 'Sent', 'Approved', 'Rejected']:
+            return jsonify({'error': f"Invalid status '{status}'. Must be Draft, Sent, Approved, or Rejected."}), 400
+
+        # Verify ownership and update
+        response = (
+            supabase_admin
+            .table('projects')
+            .update({'status': normalized_status})
+            .eq('id', project_id)
+            .eq('builder_id', user_id)
+            .execute()
+        )
+
+        if not response.data:
+            return jsonify({'error': 'Project not found or access denied.'}), 404
+
+        updated_project = response.data[0]
+        if 'quality' in updated_project:
+            updated_project['quality'] = map_quality_from_db(updated_project['quality'])
+
+        return jsonify({'success': True, 'data': updated_project}), 200
+
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 401
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+

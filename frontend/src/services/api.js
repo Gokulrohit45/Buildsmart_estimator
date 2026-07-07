@@ -61,6 +61,9 @@ export const authAPI = {
 
   resetPassword: (email, otp, password) =>
     request('POST', '/api/auth/reset-password', { email, otp, password }),
+
+  updateProfile: (payload) =>
+    request('PUT', '/api/auth/profile', payload),
 };
 
 // ── Projects API ─────────────────────────────────────────────
@@ -73,6 +76,8 @@ export const projectsAPI = {
 
   delete: (id) => request('DELETE', `/api/projects/${id}`),
 
+  updateStatus: (id, status) => request('PUT', `/api/projects/${id}/status`, { status }),
+
   getSettings: () => request('GET', '/api/projects/settings'),
 };
 
@@ -83,6 +88,8 @@ export const estimatesAPI = {
   byProject: (projectId) => request('GET', `/api/estimates/project/${projectId}`),
 
   get: (estimateId) => request('GET', `/api/estimates/${estimateId}`),
+
+  sharePdf: (estimateId) => request('POST', `/api/estimates/${estimateId}/share-pdf`),
 };
 
 // ── Admin API ────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import Dashboard from './pages/user/Dashboard';
 import NewProject from './pages/user/NewProject';
 import EstimateResult from './pages/user/EstimateResult';
 import ProjectHistory from './pages/user/ProjectHistory';
+import Settings from './pages/user/Settings';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import RateMaster from './pages/admin/RateMaster';
 import UserManagement from './pages/admin/UserManagement';
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/new-estimate" element={<ProtectedRoute requiredRole="builder"><NewProject /></ProtectedRoute>} />
         <Route path="/estimate-result" element={<ProtectedRoute requiredRole="builder"><EstimateResult /></ProtectedRoute>} />
         <Route path="/projects" element={<ProtectedRoute requiredRole="builder"><ProjectHistory /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute requiredRole="builder"><Settings /></ProtectedRoute>} />
 
         {/* Admin Routes - role: 'admin' */}
         <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />

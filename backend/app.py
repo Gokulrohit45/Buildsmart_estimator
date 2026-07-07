@@ -23,8 +23,8 @@ def home():
     """Welcome page showcasing the AI Estimator Status."""
     return jsonify({
         'status': 'active',
-        'system': 'BuildSmart AI Estimator API Engine',
-        'message': 'BuildSmart AI backend is running properly. Systems: AI Estimator (Active), Database (Connected), Auth Service (Online).',
+        'system': 'Buildsmart 360 API Engine',
+        'message': 'Buildsmart 360 backend is running properly. Systems: AI Estimator (Active), Database (Connected), Auth Service (Online).',
         'documentation': 'Access /api/health for system status check.'
     })
 

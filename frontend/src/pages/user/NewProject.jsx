@@ -73,6 +73,9 @@ const DEFAULT_FORM = {
   
   has_water_tank: false,
   water_tank_capacity: 0,
+
+  has_upper_water_tank: false,
+  upper_water_tank_capacity: '1000L',
   
   septic_tank_capacity: 3000, // compulsory tank capacity
   
@@ -110,6 +113,7 @@ export default function NewProject() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
+  const [showMatrixModal, setShowMatrixModal] = useState(false);
   const [errors, setErrors] = useState({});
   const [activeFloorTab, setActiveFloorTab] = useState(1);
   const [expandedRoomIdx, setExpandedRoomIdx] = useState(null);
@@ -132,13 +136,13 @@ export default function NewProject() {
   }, []);
 
   useEffect(() => {
-    if (user && user.company_name && !form.customer_name) {
+    if (user && user.company_name && !form.builder_company_name) {
       setForm((prev) => ({
         ...prev,
         builder_company_name: user.company_name
       }));
     }
-  }, [user]);
+  }, []);
 
   const renderInclusionBadge = (featureKey) => {
     if (globalSettings[`include_${featureKey}_${form.quality.toLowerCase()}`] === 'true') {
@@ -601,7 +605,17 @@ export default function NewProject() {
         {step === 1 && (
           <div className="card fade-in" style={{ borderTop: '3px solid #0891b2' }}>
             <div style={{ height: '4px', background: 'linear-gradient(90deg, #0891b2, #0f766e)', borderRadius: '4px 4px 0 0' }} />
-            <div className="card-header"><div className="card-title">👥 Project & Package Details</div></div>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="card-title">👥 Project & Package Details</div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowMatrixModal(true)}
+                style={{ fontSize: '11px', padding: '6px 14px', borderRadius: '20px', fontWeight: 'bold' }}
+              >
+                ℹ️ View Inclusions Matrix
+              </button>
+            </div>
             <div className="card-body">
               <div className="form-row-2">
                 <div className="form-group">
@@ -668,6 +682,7 @@ export default function NewProject() {
                   })}
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -1297,6 +1312,36 @@ export default function NewProject() {
                   )}
                 </div>
 
+                {/* Upper Water Tank (Optional with Toggle Switch) */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🛢️ Upper Overhead Water Tank {renderInclusionBadge('upper_water_tank')}</span>
+                    <input
+                      type="checkbox"
+                      checked={form.has_upper_water_tank}
+                      onChange={(e) => set('has_upper_water_tank', e.target.checked)}
+                      style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                    />
+                  </div>
+                  {form.has_upper_water_tank ? (
+                    <div className="form-group">
+                      <label className="form-label">Tank Capacity Choice</label>
+                      <select
+                        className="form-control"
+                        value={form.upper_water_tank_capacity}
+                        onChange={(e) => set('upper_water_tank_capacity', e.target.value)}
+                      >
+                        <option value="500L">500 Litres (₹{globalSettings['rate_upper_water_tank_500l'] || '3,000'})</option>
+                        <option value="1000L">1000 Litres (₹{globalSettings['rate_upper_water_tank_1000l'] || '6,000'})</option>
+                        <option value="1500L">1500 Litres (₹{globalSettings['rate_upper_water_tank_1500l'] || '8,500'})</option>
+                        <option value="2000L">2000 Litres (₹{globalSettings['rate_upper_water_tank_2000l'] || '11,000'})</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--color-gray-400)', fontStyle: 'italic' }}>Toggled Off — Cost excluded.</div>
+                  )}
+                </div>
+
                 {/* Septic Tank (Compulsory! No Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
@@ -1668,6 +1713,17 @@ export default function NewProject() {
                   </div>
 
                   <div>
+                    <strong>Upper Water Tank:</strong>{' '}
+                    {form.has_upper_water_tank ? (
+                      <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                        ON ({form.upper_water_tank_capacity}) {globalSettings[`include_upper_water_tank_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
+                    )}
+                  </div>
+
+                  <div>
                     <strong>Septic Tank:</strong>{' '}
                     <span style={{ color: '#16a34a', fontWeight: 600 }}>
                       Compulsory ({form.septic_tank_capacity} Litres) {globalSettings[`include_septic_tank_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
@@ -1802,6 +1858,110 @@ export default function NewProject() {
           )}
         </div>
       </div>
+
+      {/* Inclusions Matrix Popup Modal */}
+      {showMatrixModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center',
+          alignItems: 'center', zIndex: 1000, padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff', width: '100%', maxWidth: '750px', borderRadius: '16px',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', display: 'flex', flexDirection: 'column',
+            maxHeight: '85vh', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc'
+            }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f766e', margin: 0 }}>Turnkey Package Inclusions Matrix</h3>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>Compare what works are included by default across packages</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMatrixModal(false)}
+                style={{
+                  background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer',
+                  color: '#64748b', padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <div className="alert alert-teal" style={{ marginBottom: '20px' }}>
+                <span className="alert-icon">ℹ️</span>
+                <div className="alert-body">
+                  <div className="alert-title" style={{ fontSize: '12px', fontWeight: 600 }}>
+                    These features are globally configured by the Admin. If you need any default inclusions changed, please notify the Admin.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+                      <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '700', color: '#334155' }}>Feature Add-on</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: '#334155' }}>Base</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: '#334155' }}>Standard</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: '#334155' }}>Premium</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: '#334155' }}>Luxury</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { label: 'Compound Wall', key: 'compound_wall' },
+                      { label: 'Entrance Gate', key: 'gate' },
+                      { label: 'Underground Sump (Water Tank)', key: 'water_tank' },
+                      { key: 'upper_water_tank', label: 'Upper Water Tank' },
+                      { label: 'Septic Tank', key: 'septic_tank' },
+                      { label: 'Front Elevation', key: 'front_elevation' },
+                      { label: 'False Ceiling', key: 'false_ceiling' },
+                      { label: 'Wardrobes', key: 'wardrobes' },
+                      { label: 'Modular Kitchen', key: 'modular_kitchen' },
+                      { label: 'Surkhi Weathering Course', key: 'surkhi' }
+                    ].map((feature, idx) => (
+                      <tr key={feature.key} style={{ borderBottom: '1px solid #e2e8f0', background: idx % 2 === 0 ? 'rgba(240,253,250,0.3)' : 'none' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: '600', color: '#1e293b' }}>{feature.label}</td>
+                        {['base', 'standard', 'premium', 'luxury'].map((pkg) => {
+                          const isIncluded = globalSettings[`include_${feature.key}_${pkg}`] === 'true';
+                          return (
+                            <td key={pkg} style={{ padding: '12px 14px', textAlign: 'center', fontSize: '15px' }}>
+                              {isIncluded ? <span style={{ color: '#10b981' }}>✔️</span> : <span style={{ color: '#ef4444' }}>❌</span>}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex',
+              justifyContent: 'flex-end', background: '#f8fafc'
+            }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowMatrixModal(false)}
+                style={{ borderRadius: '20px', padding: '6px 20px', fontWeight: 'bold' }}
+              >
+                Close Matrix View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

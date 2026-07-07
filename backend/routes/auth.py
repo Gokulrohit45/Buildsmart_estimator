@@ -201,7 +201,10 @@ def me():
             'email':        user.email,
             'role':         profile.get('role'),
             'company_name': profile.get('company_name'),
+            'phone':        profile.get('phone'),
             'city':         profile.get('city'),
+            'gstin':        profile.get('gstin'),
+            'avatar_url':   profile.get('avatar_url'),
         }), 200
 
     except Exception as exc:
@@ -268,7 +271,7 @@ def forgot_password():
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-                    <h2 style="color: #0f766e; text-align: center;">BuildSmart AI Estimator</h2>
+                    <h2 style="color: #0f766e; text-align: center;">Buildsmart 360</h2>
                     <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
                     <p>Hello,</p>
                     <p>We received a request to reset your password. Use the following 6-digit One-Time Password (OTP) to proceed:</p>
@@ -277,7 +280,7 @@ def forgot_password():
                     </div>
                     <p style="color: #64748b; font-size: 13px;">This OTP is valid for 10 minutes. If you did not request a password reset, please ignore this email.</p>
                     <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                    <p style="font-size: 12px; color: #94a3b8; text-align: center;">© 2026 BuildSmart AI. Built for Indian Builders.</p>
+                    <p style="font-size: 12px; color: #94a3b8; text-align: center;">© 2026 Buildsmart 360. Built for Indian Builders.</p>
                 </div>
             </body>
             </html>
@@ -409,3 +412,78 @@ def reset_password():
 
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/auth/profile  –  update authenticated user's profile
+# ---------------------------------------------------------------------------
+@auth_bp.route('/profile', methods=['PUT'])
+def update_profile():
+    """
+    Update the authenticated builder's profile.
+    Body: { company_name, phone, city, gstin, avatar_url }
+    """
+    try:
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Missing or invalid Authorization header.'}), 401
+
+        token = auth_header[len('Bearer '):]
+        user_response = get_supabase_user(token)
+        user = user_response.user
+
+        if not user:
+            return jsonify({'error': 'Invalid or expired token.'}), 401
+
+        data = request.get_json(force=True) or {}
+        company_name = data.get('company_name')
+        phone        = data.get('phone')
+        city         = data.get('city')
+        gstin        = data.get('gstin')
+        avatar_url   = data.get('avatar_url')
+
+        update_data = {}
+        if company_name is not None:
+            update_data['company_name'] = company_name.strip()
+        if phone is not None:
+            update_data['phone'] = phone.strip()
+        if city is not None:
+            update_data['city'] = city.strip()
+        if gstin is not None:
+            update_data['gstin'] = gstin.strip()
+        if avatar_url is not None:
+            update_data['avatar_url'] = avatar_url.strip()
+
+        if not update_data:
+            return jsonify({'error': 'No fields to update.'}), 400
+
+        response = (
+            supabase_admin
+            .table('profiles')
+            .update(update_data)
+            .eq('id', user.id)
+            .execute()
+        )
+
+        if not response.data:
+            return jsonify({'error': 'Failed to update profile.'}), 500
+
+        updated = response.data[0]
+        return jsonify({
+            'success': True,
+            'user': {
+                'id':           updated.get('id'),
+                'email':        updated.get('email'),
+                'role':         updated.get('role'),
+                'company_name': updated.get('company_name'),
+                'phone':        updated.get('phone'),
+                'city':         updated.get('city'),
+                'gstin':        updated.get('gstin'),
+                'avatar_url':   updated.get('avatar_url'),
+                'is_approved':  updated.get('is_approved')
+            }
+        }), 200
+
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+

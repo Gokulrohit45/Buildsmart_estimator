@@ -177,8 +177,8 @@ export default function Login() {
         <div style={styles.logoWrap}>
           <div style={styles.logoBox}>BS</div>
           <div>
-            <div style={styles.logoName}>BuildSmart AI</div>
-            <div style={styles.logoSub}>Construction Estimator</div>
+            <div style={styles.logoName}>Buildsmart 360</div>
+            <div style={styles.logoSub}>AI Estimator Platform</div>
           </div>
         </div>
 
@@ -225,7 +225,7 @@ export default function Login() {
         <div style={styles.card}>
           <div style={styles.cardHeader}>
             <div style={styles.cardTitle}>
-              {mode === 'login' ? 'Sign in to BuildSmart' : 'Create Account'}
+              {mode === 'login' ? 'Sign in to Buildsmart 360' : 'Create Account'}
             </div>
             <div style={styles.cardSub}>
               {mode === 'login' ? 'Enter your credentials to continue' : 'Register as a builder'}
@@ -509,7 +509,7 @@ export default function Login() {
         </div>
 
         <div style={styles.footerNote}>
-          © 2026 BuildSmart AI · Built for Indian Construction Industry
+          © 2026 Buildsmart 360 · Built for Indian Construction Industry
         </div>
       </div>
     </div>
