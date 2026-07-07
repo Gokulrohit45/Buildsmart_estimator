@@ -210,10 +210,7 @@ export default function SystemSettings() {
     setSaving(true);
     setError('');
     try {
-      const keys = Object.keys(settings);
-      await Promise.all(
-        keys.map((k) => adminAPI.updateSetting(k, settings[k]))
-      );
+      await adminAPI.updateSettings(settings);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {

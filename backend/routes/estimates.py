@@ -7,7 +7,7 @@ import io
 from flask import Blueprint, request, jsonify, send_file
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-from services.db import supabase_admin
+from services.db import supabase_admin, get_supabase_user
 from services.estimator import calculate_estimate
 
 estimates_bp = Blueprint('estimates_bp', __name__, url_prefix='/api/estimates')
@@ -47,7 +47,7 @@ def get_user_id_from_token(req):
     token = auth_header[len('Bearer '):]
 
     try:
-        user_response = supabase_admin.auth.get_user(token)
+        user_response = get_supabase_user(token)
         user = user_response.user
     except Exception as exc:
         raise ValueError(f'Token validation failed: {exc}')

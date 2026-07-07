@@ -4,7 +4,7 @@ Handles user registration, login, and profile retrieval.
 """
 
 from flask import Blueprint, request, jsonify
-from services.db import supabase_admin
+from services.db import supabase_admin, get_supabase_user, supabase_client
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
 
@@ -113,7 +113,7 @@ def login():
             return jsonify({'error': 'Email and password are required.'}), 400
 
         # Sign in via password flow
-        auth_response = supabase_admin.auth.sign_in_with_password({
+        auth_response = supabase_client.auth.sign_in_with_password({
             'email':    email,
             'password': password,
         })
@@ -176,7 +176,7 @@ def me():
         token = auth_header[len('Bearer '):]
 
         # Validate token and retrieve user from Supabase
-        user_response = supabase_admin.auth.get_user(token)
+        user_response = get_supabase_user(token)
         user = user_response.user
 
         if not user:

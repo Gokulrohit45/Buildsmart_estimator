@@ -4,7 +4,7 @@ Handles CRUD operations for builder projects.
 """
 
 from flask import Blueprint, request, jsonify
-from services.db import supabase_admin
+from services.db import supabase_admin, get_supabase_user
 
 projects_bp = Blueprint('projects_bp', __name__, url_prefix='/api/projects')
 
@@ -42,7 +42,7 @@ def get_user_id_from_token(req):
     token = auth_header[len('Bearer '):]
 
     try:
-        user_response = supabase_admin.auth.get_user(token)
+        user_response = get_supabase_user(token)
         user = user_response.user
     except Exception as exc:
         raise ValueError(f'Token validation failed: {exc}')

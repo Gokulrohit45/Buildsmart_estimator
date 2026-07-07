@@ -7,7 +7,7 @@ All routes require an authenticated admin user.
 import csv
 import io
 from flask import Blueprint, request, jsonify
-from services.db import supabase_admin
+from services.db import supabase_admin, get_supabase_user
 
 admin_bp = Blueprint('admin_bp', __name__, url_prefix='/api/admin')
 
@@ -33,7 +33,7 @@ def is_admin(req):
     token = auth_header[len('Bearer '):]
 
     try:
-        user_response = supabase_admin.auth.get_user(token)
+        user_response = get_supabase_user(token)
         user = user_response.user
     except Exception as exc:
         raise PermissionError(f'Token validation failed: {exc}')
@@ -365,6 +365,37 @@ def list_settings():
 
         return jsonify({'success': True, 'data': settings_dict}), 200
 
+    except PermissionError as pe:
+        return jsonify({'error': str(pe)}), 403
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/admin/settings  –  Bulk update settings
+# ---------------------------------------------------------------------------
+@admin_bp.route('/settings', methods=['PUT'])
+def update_settings_bulk():
+    """
+    Update (upsert) multiple system settings in bulk.
+    Body: { settings: { key: value, ... } } or directly { key: value, ... }
+    """
+    try:
+        is_admin(request)
+        data = request.get_json(force=True) or {}
+        
+        settings_to_update = data.get('settings') if 'settings' in data else data
+        
+        if not isinstance(settings_to_update, dict):
+            return jsonify({'error': 'Invalid payload format. Expected dict.'}), 400
+            
+        payload = [{'key': k, 'value': str(v)} for k, v in settings_to_update.items()]
+        
+        if payload:
+            supabase_admin.table('system_settings').upsert(payload, on_conflict='key').execute()
+            
+        return jsonify({'success': True, 'message': f"Updated {len(payload)} settings successfully."}), 200
+        
     except PermissionError as pe:
         return jsonify({'error': str(pe)}), 403
     except Exception as exc:

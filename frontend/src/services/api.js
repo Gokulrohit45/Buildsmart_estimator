@@ -105,6 +105,7 @@ export const adminAPI = {
   // Settings
   getSettings: () => request('GET', '/api/admin/settings'),
   updateSetting: (key, value) => request('PUT', `/api/admin/settings/${key}`, { value }),
+  updateSettings: (payload) => request('PUT', '/api/admin/settings', payload),
   getCityIndexes: () => request('GET', '/api/admin/city-indexes'),
   updateCityIndex: (city, costIndex, state = 'India') => request('PUT', `/api/admin/city-indexes/${encodeURIComponent(city)}`, { cost_index: costIndex, state }),
 

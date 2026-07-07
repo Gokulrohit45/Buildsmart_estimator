@@ -18,3 +18,10 @@ supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Client with anonymous/public privileges (respects RLS)
 supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY or "")
+
+def get_supabase_user(token: str):
+    """
+    Validate a user's JWT token using the anon client.
+    This prevents polluting the service role client's headers.
+    """
+    return supabase_client.auth.get_user(token)
