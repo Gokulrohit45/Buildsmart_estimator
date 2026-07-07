@@ -219,3 +219,32 @@ def delete_project(project_id):
         if 'No rows found' in str(exc) or 'PGRST116' in str(exc):
             return jsonify({'error': 'Project not found or access denied.'}), 404
         return jsonify({'error': str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
+# GET /api/projects/settings  –  fetch public system settings for builders
+# ---------------------------------------------------------------------------
+@projects_bp.route('/settings', methods=['GET'])
+def get_public_settings():
+    """
+    Return all system settings as a flat { key: value } dict for builders.
+    Allows builders to see what turnkey features are included in each package.
+    """
+    try:
+        get_user_id_from_token(request)
+
+        response = (
+            supabase_admin
+            .table('system_settings')
+            .select('key, value')
+            .execute()
+        )
+
+        settings_dict = {row['key']: row['value'] for row in (response.data or [])}
+        return jsonify({'success': True, 'data': settings_dict}), 200
+
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 401
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+

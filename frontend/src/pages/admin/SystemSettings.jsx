@@ -74,7 +74,59 @@ const DEFAULT_SETTINGS = {
   rate_modular_kitchen_base: '20',
   rate_modular_kitchen_standard: '25',
   rate_modular_kitchen_premium: '30',
-  rate_modular_kitchen_luxury: '40'
+  rate_modular_kitchen_luxury: '40',
+
+  // Surkhi Weathering Course Rates
+  rate_surkhi_base: '60',
+  rate_surkhi_standard: '80',
+  rate_surkhi_premium: '100',
+  rate_surkhi_luxury: '120',
+
+  // Package Inclusions
+  include_compound_wall_base: 'false',
+  include_compound_wall_standard: 'false',
+  include_compound_wall_premium: 'false',
+  include_compound_wall_luxury: 'false',
+  
+  include_gate_base: 'false',
+  include_gate_standard: 'false',
+  include_gate_premium: 'false',
+  include_gate_luxury: 'false',
+
+  include_water_tank_base: 'false',
+  include_water_tank_standard: 'false',
+  include_water_tank_premium: 'false',
+  include_water_tank_luxury: 'false',
+
+  include_septic_tank_base: 'false',
+  include_septic_tank_standard: 'false',
+  include_septic_tank_premium: 'false',
+  include_septic_tank_luxury: 'false',
+
+  include_front_elevation_base: 'false',
+  include_front_elevation_standard: 'false',
+  include_front_elevation_premium: 'false',
+  include_front_elevation_luxury: 'false',
+
+  include_false_ceiling_base: 'false',
+  include_false_ceiling_standard: 'false',
+  include_false_ceiling_premium: 'false',
+  include_false_ceiling_luxury: 'false',
+
+  include_wardrobes_base: 'false',
+  include_wardrobes_standard: 'false',
+  include_wardrobes_premium: 'false',
+  include_wardrobes_luxury: 'false',
+
+  include_modular_kitchen_base: 'false',
+  include_modular_kitchen_standard: 'false',
+  include_modular_kitchen_premium: 'false',
+  include_modular_kitchen_luxury: 'false',
+
+  include_surkhi_base: 'false',
+  include_surkhi_standard: 'false',
+  include_surkhi_premium: 'false',
+  include_surkhi_luxury: 'false'
 };
 
 const SECTION_ICONS = {
@@ -382,6 +434,89 @@ export default function SystemSettings() {
           <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_modular_kitchen_luxury || ''}
             onChange={(e) => set('rate_modular_kitchen_luxury', e.target.value)} disabled={loading} />
         </SettingRow>
+      </SectionCard>
+
+      {/* Surkhi Weathering Course Rates */}
+      <SectionCard title="Surkhi Weathering Course Rates" icon="🧱">
+        <SettingRow label="Base Surkhi Rate (₹/sqft)" sublabel="Surkhi weathering course rate under Base (Default is ₹60)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_surkhi_base || ''}
+            onChange={(e) => set('rate_surkhi_base', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Standard Surkhi Rate (₹/sqft)" sublabel="Surkhi weathering course rate under Standard (Default is ₹80)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_surkhi_standard || ''}
+            onChange={(e) => set('rate_surkhi_standard', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Premium Surkhi Rate (₹/sqft)" sublabel="Surkhi weathering course rate under Premium (Default is ₹100)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_surkhi_premium || ''}
+            onChange={(e) => set('rate_surkhi_premium', e.target.value)} disabled={loading} />
+        </SettingRow>
+        <SettingRow label="Luxury Surkhi Rate (₹/sqft)" sublabel="Surkhi weathering course rate under Luxury (Default is ₹120)">
+          <input className="form-control" type="number" style={numberInputStyle} value={settings.rate_surkhi_luxury || ''}
+            onChange={(e) => set('rate_surkhi_luxury', e.target.value)} disabled={loading} />
+        </SettingRow>
+      </SectionCard>
+
+      {/* Package Turnkey Inclusions Matrix */}
+      <SectionCard title="Package Turnkey Inclusions Matrix" icon="📋">
+        <p className="text-muted mb-4" style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+          Check the boxes below to mark which features are <strong>included in the core package square foot rate</strong>.
+          If checked, the estimated cost for that feature will be set to ₹0 in the builder's BOQ, indicating it is included in the package.
+        </p>
+        <div className="table-responsive" style={{ background: '#0f172a', borderRadius: '12px', padding: '16px', border: '1px solid #1e293b' }}>
+          <table className="table" style={{ color: '#f8fafc', margin: 0, width: '100%' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #334155' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#38bdf8' }}>Feature Add-on</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#38bdf8' }}>Base</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#38bdf8' }}>Standard</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#38bdf8' }}>Premium</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#38bdf8' }}>Luxury</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Compound Wall', key: 'compound_wall' },
+                { label: 'Entrance Gate', key: 'gate' },
+                { label: 'Underground Sump (Water Tank)', key: 'water_tank' },
+                { label: 'Septic Tank', key: 'septic_tank' },
+                { label: 'Front Elevation', key: 'front_elevation' },
+                { label: 'False Ceiling', key: 'false_ceiling' },
+                { label: 'Wardrobes', key: 'wardrobes' },
+                { label: 'Modular Kitchen', key: 'modular_kitchen' },
+                { label: 'Surkhi Weathering Course', key: 'surkhi' }
+              ].map((feature, idx) => (
+                <tr key={feature.key} style={{ borderBottom: idx === 8 ? 'none' : '1px solid #1e293b' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: '500' }}>{feature.label}</td>
+                  {['base', 'standard', 'premium', 'luxury'].map((pkg) => {
+                    const settingKey = `include_${feature.key}_${pkg}`;
+                    const isChecked = settings[settingKey] === 'true';
+                    return (
+                      <td key={pkg} style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#0f766e' }}
+                          checked={isChecked}
+                          onChange={(e) => set(settingKey, e.target.checked ? 'true' : 'false')}
+                          disabled={loading}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+          <button
+            className="btn btn-primary"
+            onClick={handleSave}
+            disabled={saving || loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '700' }}
+          >
+            {saving ? '⏳ Saving Inclusions…' : '💾 Save Inclusions Settings'}
+          </button>
+        </div>
       </SectionCard>
     </Layout>
   );

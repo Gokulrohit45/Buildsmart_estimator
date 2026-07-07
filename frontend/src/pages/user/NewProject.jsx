@@ -95,6 +95,10 @@ const DEFAULT_FORM = {
   has_modular_kitchen: false,
   modular_kitchen_area: 0,
   modular_kitchen_package: 'Standard',
+
+  has_surkhi: false,
+  surkhi_area: 0,
+  surkhi_package: 'Standard',
   
   contingency_percentage: 5,
   builder_margin_percentage: 10,
@@ -111,6 +115,21 @@ export default function NewProject() {
   const [expandedRoomIdx, setExpandedRoomIdx] = useState(null);
 
   const user = getCurrentUser();
+  const [globalSettings, setGlobalSettings] = useState({});
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await projectsAPI.getSettings();
+        if (res && res.success) {
+          setGlobalSettings(res.data || {});
+        }
+      } catch (err) {
+        console.error('Failed to load system settings:', err);
+      }
+    }
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     if (user && user.company_name && !form.customer_name) {
@@ -120,6 +139,27 @@ export default function NewProject() {
       }));
     }
   }, [user]);
+
+  const renderInclusionBadge = (featureKey) => {
+    if (globalSettings[`include_${featureKey}_${form.quality.toLowerCase()}`] === 'true') {
+      return (
+        <span style={{
+          marginLeft: '8px',
+          padding: '2px 8px',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          color: '#0f766e',
+          background: '#ccfbf1',
+          borderRadius: '12px',
+          border: '1px solid #99f6e4',
+          display: 'inline-block'
+        }}>
+          Included in {form.quality}
+        </span>
+      );
+    }
+    return null;
+  };
 
   const set = (key, val) => {
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -212,6 +252,7 @@ export default function NewProject() {
     const isBath = name === 'Bathroom';
     const isKitchen = name === 'Kitchen';
     const isBalcony = name === 'Balcony';
+    const currentQual = form.quality || 'Standard';
 
     return {
       floor_num: floorNum,
@@ -219,9 +260,9 @@ export default function NewProject() {
       length: l,
       width: w,
       height,
-      tiles_package: 'Standard',
-      doors: isBalcony ? [] : [{ type: 'Standard', width: 3, height: 7, qty: 1 }],
-      windows: [{ type: 'Standard', width: 4, height: 4, qty: isBath ? 0 : 1 }],
+      tiles_package: currentQual,
+      doors: isBalcony ? [] : [{ type: currentQual, width: 3, height: 7, qty: 1 }],
+      windows: [{ type: currentQual, width: 4, height: 4, qty: isBath ? 0 : 1 }],
       electrical: {
         light_points: isBath ? 2 : 4,
         fan_points: isBath ? 0 : 1,
@@ -232,7 +273,7 @@ export default function NewProject() {
         geyser_points: isBath ? 1 : 0,
         exhaust_points: (isBath || isKitchen) ? 1 : 0,
         exterior_light_points: 0,
-        package: 'Standard'
+        package: currentQual
       },
       plumbing: {
         wc: isBath ? 1 : 0,
@@ -246,7 +287,7 @@ export default function NewProject() {
         drain_point: isKitchen ? 1 : 0,
         washing_machine: 0,
         utility_sink: 0,
-        package: 'Standard'
+        package: currentQual
       }
     };
   };
@@ -330,9 +371,14 @@ export default function NewProject() {
           ...win,
           type: newQuality
         }));
+        const updatedDoors = (room.doors || []).map(door => ({
+          ...door,
+          type: newQuality
+        }));
         return {
           ...room,
           tiles_package: newQuality,
+          doors: updatedDoors,
           electrical: {
             ...room.electrical,
             package: newQuality
@@ -352,6 +398,7 @@ export default function NewProject() {
         front_elevation_package: newQuality,
         false_ceiling_package: newQuality,
         modular_kitchen_package: newQuality,
+        surkhi_package: newQuality,
         wardrobe_quality: targetWardrobeQual,
         rooms_list: updatedRooms
       };
@@ -1170,7 +1217,7 @@ export default function NewProject() {
                 {/* Compound Wall (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🧱 Compound Wall</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🧱 Compound Wall {renderInclusionBadge('compound_wall')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_compound_wall}
@@ -1180,7 +1227,7 @@ export default function NewProject() {
                   </div>
                   {form.has_compound_wall ? (
                     <div className="form-row-2">
-                      <div className="form-group">
+                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Compound Wall Length (ft)</label>
                         <input className="form-control" type="number" value={form.compound_wall_length} onChange={(e) => set('compound_wall_length', parseFloat(e.target.value) || 0)} />
                       </div>
@@ -1197,7 +1244,7 @@ export default function NewProject() {
                 {/* Entrance Gate (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚪 Entrance Gate</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚪 Entrance Gate {renderInclusionBadge('gate')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_gate}
@@ -1232,7 +1279,7 @@ export default function NewProject() {
                 {/* Sump Tank (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚰 Underground Water Sump</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚰 Underground Water Sump {renderInclusionBadge('water_tank')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_water_tank}
@@ -1253,7 +1300,7 @@ export default function NewProject() {
                 {/* Septic Tank (Compulsory! No Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚽 Septic Tank (Compulsory)</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚽 Septic Tank {renderInclusionBadge('septic_tank')}</span>
                     <span style={{ color: '#0f766e', fontSize: '11px', fontWeight: 700 }}>ALWAYS ON</span>
                   </div>
                   <div className="form-group">
@@ -1265,7 +1312,7 @@ export default function NewProject() {
                 {/* Front Elevation (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>📐 Front Elevation Facade</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>📐 Front Elevation Facade {renderInclusionBadge('front_elevation')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_front_elevation}
@@ -1300,7 +1347,7 @@ export default function NewProject() {
                 {/* False Ceiling (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🎨 False Ceiling</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🎨 False Ceiling {renderInclusionBadge('false_ceiling')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_false_ceiling}
@@ -1329,7 +1376,7 @@ export default function NewProject() {
                 {/* Wardrobes (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚪 Wardrobes Carpentry</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🚪 Wardrobes Carpentry {renderInclusionBadge('wardrobes')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_wardrobes}
@@ -1381,7 +1428,7 @@ export default function NewProject() {
                 {/* Modular Kitchen (Optional with Toggle Switch) */}
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🍳 Modular Kitchen</span>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🍳 Modular Kitchen {renderInclusionBadge('modular_kitchen')}</span>
                     <input
                       type="checkbox"
                       checked={form.has_modular_kitchen}
@@ -1398,6 +1445,44 @@ export default function NewProject() {
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Kitchen Package</label>
                         <select className="form-control" value={form.modular_kitchen_package} onChange={(e) => set('modular_kitchen_package', e.target.value)}>
+                          {['Base', 'Standard', 'Premium', 'Luxury'].map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--color-gray-400)', fontStyle: 'italic' }}>Toggled Off — Cost excluded.</div>
+                  )}
+                </div>
+
+                {/* Surkhi Weathering Course (Optional with Toggle Switch) */}
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', background: '#f8fafc' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px', marginBottom: '12px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1e293b' }}>🧱 Surkhi Weathering Course {renderInclusionBadge('surkhi')}</span>
+                    <input
+                      type="checkbox"
+                      checked={form.has_surkhi}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        set('has_surkhi', checked);
+                        if (checked && form.surkhi_area === 0) {
+                          const defaultArea = form.floors_list?.[form.floors_list.length - 1] 
+                            ? (form.floors_list[form.floors_list.length - 1].length * form.floors_list[form.floors_list.length - 1].width)
+                            : 1000;
+                          set('surkhi_area', defaultArea);
+                        }
+                      }}
+                      style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                    />
+                  </div>
+                  {form.has_surkhi ? (
+                    <div className="form-row-2">
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '11px' }}>Surkhi Area (sqft)</label>
+                        <input className="form-control" type="number" value={form.surkhi_area} onChange={(e) => set('surkhi_area', parseFloat(e.target.value) || 0)} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontSize: '11px' }}>Surkhi Package</label>
+                        <select className="form-control" value={form.surkhi_package} onChange={(e) => set('surkhi_package', e.target.value)}>
                           {['Base', 'Standard', 'Premium', 'Luxury'].map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                       </div>
@@ -1553,7 +1638,7 @@ export default function NewProject() {
                     <strong>Compound Wall:</strong>{' '}
                     {form.has_compound_wall ? (
                       <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                        ON ({form.compound_wall_length}x{form.compound_wall_height} ft)
+                        ON ({form.compound_wall_length}x{form.compound_wall_height} ft) {globalSettings[`include_compound_wall_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
@@ -1564,7 +1649,7 @@ export default function NewProject() {
                     <strong>Entrance Gate:</strong>{' '}
                     {form.has_gate ? (
                       <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                        ON ({form.gate_width}x{form.gate_height} ft, {form.gate_package})
+                        ON ({form.gate_width}x{form.gate_height} ft, {form.gate_package}) {globalSettings[`include_gate_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
@@ -1572,9 +1657,11 @@ export default function NewProject() {
                   </div>
 
                   <div>
-                    <strong>Water Sump Sump:</strong>{' '}
+                    <strong>Water Sump:</strong>{' '}
                     {form.has_water_tank ? (
-                      <span style={{ color: '#16a34a', fontWeight: 600 }}>ON ({form.water_tank_capacity} Litres)</span>
+                      <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                        ON ({form.water_tank_capacity} Litres) {globalSettings[`include_water_tank_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
+                      </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
                     )}
@@ -1582,14 +1669,16 @@ export default function NewProject() {
 
                   <div>
                     <strong>Septic Tank:</strong>{' '}
-                    <span style={{ color: '#16a34a', fontWeight: 600 }}>Compulsory ({form.septic_tank_capacity} Litres)</span>
+                    <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                      Compulsory ({form.septic_tank_capacity} Litres) {globalSettings[`include_septic_tank_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
+                    </span>
                   </div>
 
                   <div>
                     <strong>Front elevation:</strong>{' '}
                     {form.has_front_elevation ? (
                       <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                        ON ({form.front_elevation_width}x{form.front_elevation_height} ft, {form.front_elevation_package})
+                        ON ({form.front_elevation_width}x{form.front_elevation_height} ft, {form.front_elevation_package}) {globalSettings[`include_front_elevation_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
@@ -1599,7 +1688,9 @@ export default function NewProject() {
                   <div>
                     <strong>False Ceiling:</strong>{' '}
                     {form.has_false_ceiling ? (
-                      <span style={{ color: '#16a34a', fontWeight: 600 }}>ON ({form.false_ceiling_area} sqft, {form.false_ceiling_package})</span>
+                      <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                        ON ({form.false_ceiling_area} sqft, {form.false_ceiling_package}) {globalSettings[`include_false_ceiling_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
+                      </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
                     )}
@@ -1609,7 +1700,7 @@ export default function NewProject() {
                     <strong>Wardrobes Carpentry:</strong>{' '}
                     {form.has_wardrobes ? (
                       <span style={{ color: '#16a34a', fontWeight: 600 }}>
-                        ON ({form.wardrobe_area} sqft, {form.wardrobe_type} - {form.wardrobe_quality})
+                        ON ({form.wardrobe_area} sqft, {form.wardrobe_type} - {form.wardrobe_quality}) {globalSettings[`include_wardrobes_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
                       </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
@@ -1619,7 +1710,20 @@ export default function NewProject() {
                   <div>
                     <strong>Modular Kitchen:</strong>{' '}
                     {form.has_modular_kitchen ? (
-                      <span style={{ color: '#16a34a', fontWeight: 600 }}>ON ({form.modular_kitchen_area} sqft, {form.modular_kitchen_package})</span>
+                      <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                        ON ({form.modular_kitchen_area} sqft, {form.modular_kitchen_package}) {globalSettings[`include_modular_kitchen_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>Surkhi Weathering:</strong>{' '}
+                    {form.has_surkhi ? (
+                      <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                        ON ({form.surkhi_area} sqft, {form.surkhi_package}) {globalSettings[`include_surkhi_${form.quality.toLowerCase()}`] === 'true' && <span style={{color: '#0f766e', fontSize: '11px'}}>(Included in Package)</span>}
+                      </span>
                     ) : (
                       <span style={{ color: '#94a3b8' }}>OFF (Excluded)</span>
                     )}

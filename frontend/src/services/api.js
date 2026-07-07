@@ -72,6 +72,8 @@ export const projectsAPI = {
   create: (payload) => request('POST', '/api/projects', payload),
 
   delete: (id) => request('DELETE', `/api/projects/${id}`),
+
+  getSettings: () => request('GET', '/api/projects/settings'),
 };
 
 // ── Estimates API ────────────────────────────────────────────

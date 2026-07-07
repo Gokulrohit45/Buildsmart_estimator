@@ -230,6 +230,7 @@ def generate_estimate():
                     'recommendations': result.get('recommendations', []),
                     'quantities':      result.get('quantities', {}),
                     'duration':        duration,
+                    'stages_breakdown': result.get('stages_breakdown', []),
                 },
                 'subtotal':          costs.get('subtotal', 0),
                 'contingency_pct':   costs.get('contingencyPct', 0),
@@ -277,6 +278,7 @@ def generate_estimate():
             'boqItems':        boq_items,
             'quantities':      result.get('quantities', {}),
             'recommendations': result.get('recommendations', []),
+            'stages_breakdown': result.get('stages_breakdown', []),
             'summary':         result.get('summary', {}),
             'input':           result.get('input', data),
         }), 201

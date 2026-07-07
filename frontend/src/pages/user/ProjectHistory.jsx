@@ -71,13 +71,45 @@ export default function ProjectHistory() {
         })),
         quantities: fullEst.output_json?.quantities || {},
         recommendations: fullEst.output_json?.recommendations || [],
-        summary: {
-          customerName: fullEst.project?.customer_name || p.name,
-          location: fullEst.project?.city || p.location,
-          buildingType: fullEst.project?.building_type || p.building_type,
-          totalSqft: fullEst.project?.total_sqft || p.total_sqft,
-          quality: fullEst.project?.quality || p.quality
-        },
+        summary: (() => {
+          const inj = fullEst.input_json || {};
+          const plotLength = parseFloat(inj.plot_length || inj.plotLength || 0);
+          const plotWidth  = parseFloat(inj.plot_width  || inj.plotWidth  || 0);
+          const plotArea   = plotLength * plotWidth;
+
+          const stairLen  = parseFloat(inj.staircase_length || 0);
+          const stairWid  = parseFloat(inj.staircase_width  || 0);
+          const staircaseArea = stairLen * stairWid;
+
+          const porticoLen = parseFloat(inj.portico_length || 0);
+          const porticoWid = parseFloat(inj.portico_width  || 0);
+          const porticoArea = porticoLen * porticoWid;
+
+          const floorsList = inj.floors_list || inj.floorsList || [];
+          const groundFloor = floorsList.length > 0
+            ? parseFloat(
+                floorsList[0].floor_area_sqft ||
+                (parseFloat(floorsList[0].length || 0) * parseFloat(floorsList[0].width || 0)) ||
+                0
+              )
+            : 0;
+          const groundCoverageArea = groundFloor + porticoArea + staircaseArea;
+          const openArea = Math.max(0, plotArea - groundCoverageArea);
+
+          return {
+            customerName: fullEst.project?.customer_name || p.name,
+            location: fullEst.project?.city || p.location,
+            buildingType: fullEst.project?.building_type || p.building_type,
+            totalSqft: fullEst.project?.total_sqft || p.total_sqft,
+            quality: fullEst.project?.quality || p.quality,
+            plotArea,
+            groundCoverageArea,
+            openArea,
+            staircaseArea,
+            porticoArea,
+            floorWiseArea: floorsList,
+          };
+        })(),
         input: {
           ...fullEst.input_json,
           customer_name: fullEst.project?.customer_name,

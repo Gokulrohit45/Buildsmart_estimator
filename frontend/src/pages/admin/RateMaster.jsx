@@ -33,15 +33,27 @@ export default function RateMaster() {
 
   const startEdit = (r) => {
     setEditId(r.id);
-    setEditRate(r.rate?.toString() || '');
+    const code = (r.material_code || '').toLowerCase();
+    const unit = r.material_master?.unit || '';
+    const isCft = unit.toLowerCase() === 'cft';
+    const isWall = code.includes('wall');
+    const rateVal = (isCft && !isWall) ? (r.rate * 100) : r.rate;
+    setEditRate(rateVal?.toString() || '');
     setEditVendor(r.vendor || '');
   };
 
   const saveEdit = async (id) => {
     setSavingId(id);
     try {
-      await adminAPI.updateRate(id, { rate: Number(editRate), vendor: editVendor });
-      setRates((prev) => prev.map((r) => r.id === id ? { ...r, rate: Number(editRate), vendor: editVendor } : r));
+      const r = rates.find((rate) => rate.id === id);
+      const code = (r?.material_code || '').toLowerCase();
+      const unit = r?.material_master?.unit || '';
+      const isCft = unit.toLowerCase() === 'cft';
+      const isWall = code.includes('wall');
+      const actualRate = (isCft && !isWall) ? (Number(editRate) / 100) : Number(editRate);
+
+      await adminAPI.updateRate(id, { rate: actualRate, vendor: editVendor });
+      setRates((prev) => prev.map((r) => r.id === id ? { ...r, rate: actualRate, vendor: editVendor } : r));
       setEditId(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -72,12 +84,16 @@ export default function RateMaster() {
       return;
     }
     try {
-      const created = await adminAPI.addRate({ ...addForm, city: 'Default', rate: Number(addForm.rate) });
-      setRates((prev) => [...prev, created.rate || created]);
+      const code = (addForm.material_code || '').toLowerCase();
+      const isCftCode = (code.includes('sand') || code.includes('aggregate')) && !code.includes('wall');
+      const actualRate = isCftCode ? (Number(addForm.rate) / 100) : Number(addForm.rate);
+      
+      await adminAPI.addRate({ ...addForm, city: 'Default', rate: actualRate });
       setShowAdd(false);
       setAddForm({ city: 'Default', material_code: '', rate: '', vendor: '' });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      loadRates(); // Reload to populate joins properly
     } catch (err) {
       setError(err.message || 'Failed to add rate.');
     }
@@ -300,7 +316,13 @@ export default function RateMaster() {
                       >
                         <td className="text-muted td-mono" style={{ fontSize: '12px' }}>{r.material_code}</td>
                         <td style={{ fontWeight: 500 }}>{mat.material_name || r.material_code}</td>
-                        <td className="text-muted">{mat.unit || '—'}</td>
+                        <td className="text-muted">
+                          {(r.material_code || '').toLowerCase().includes('wall')
+                            ? 'Nos'
+                            : (mat.unit || '').toLowerCase() === 'cft'
+                            ? 'Unit'
+                            : (mat.unit || '—')}
+                        </td>
                         <td>
                           <span className={`badge ${catBadge}`}>{mat.category || '—'}</span>
                         </td>
@@ -334,7 +356,13 @@ export default function RateMaster() {
                             </div>
                           ) : (
                             <span className="td-mono td-bold" style={{ color: '#0f766e', fontSize: '14px' }}>
-                              ₹{(r.rate || 0).toLocaleString()}
+                              ₹{(
+                                (r.material_code || '').toLowerCase().includes('wall')
+                                  ? (r.rate || 0)
+                                  : (mat.unit || '').toLowerCase() === 'cft'
+                                  ? (r.rate || 0) * 100
+                                  : (r.rate || 0)
+                              ).toLocaleString()}
                             </span>
                           )}
                         </td>

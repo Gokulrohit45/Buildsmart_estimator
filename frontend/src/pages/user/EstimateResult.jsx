@@ -55,12 +55,43 @@ export default function EstimateResult() {
   if (!result) return null;
 
   const summary = result.summary || {};
-  const costs = result.costs || {};
-  const quantities = result.quantities || {};
-  const duration = result.duration || {};
-  const recommendations = result.recommendations || [];
-  const boqItems = result.boqItems || [];
-  const inputData = result.input || {};
+  const rawCosts = result.costs || {};
+  const boqItems = (result.boqItems || result.items || []).map(item => {
+    if ((item.unit || '').toLowerCase() === 'cft') {
+      return { ...item, unit: 'Unit', qty: parseFloat((item.qty / 100).toFixed(2)) };
+    }
+    return item;
+  });
+  const inputData = result.input || result.input_json || {};
+
+  const categoryCosts = CATEGORIES.reduce((acc, cat) => {
+    const sum = boqItems.filter(item => item.category === cat).reduce((s, item) => s + (item.amount || 0), 0);
+    acc[cat] = sum;
+    return acc;
+  }, {});
+
+  const subtotalVal = result.subtotal ?? rawCosts.subtotal ?? 0;
+  const grandTotalVal = result.grand_total ?? rawCosts.grandTotal ?? 0;
+  const contingencyVal = result.contingency_amount ?? rawCosts.contingency ?? 0;
+  const contingencyPctVal = result.contingency_pct ?? rawCosts.contingencyPct ?? 5;
+
+  const costs = {
+    civilSubtotal: rawCosts.civilSubtotal ?? categoryCosts['Civil Works'] ?? 0,
+    labourSubtotal: rawCosts.labourSubtotal ?? categoryCosts['Labour'] ?? 0,
+    flooringSubtotal: rawCosts.flooringSubtotal ?? categoryCosts['Flooring'] ?? 0,
+    paintingSubtotal: rawCosts.paintingSubtotal ?? categoryCosts['Painting'] ?? 0,
+    electricalSubtotal: rawCosts.electricalSubtotal ?? categoryCosts['Electrical'] ?? 0,
+    plumbingSubtotal: rawCosts.plumbingSubtotal ?? categoryCosts['Plumbing'] ?? 0,
+    interiorSubtotal: rawCosts.interiorSubtotal ?? categoryCosts['Interiors'] ?? 0,
+    subtotal: subtotalVal,
+    grandTotal: grandTotalVal,
+    contingency: contingencyVal,
+    contingencyPct: contingencyPctVal,
+  };
+
+  const quantities = result.quantities || result.output_json?.quantities || {};
+  const duration = result.duration || result.output_json?.duration || {};
+  const recommendations = result.recommendations || result.output_json?.recommendations || [];
 
   const handlePrint = () => window.print();
 
@@ -98,8 +129,49 @@ export default function EstimateResult() {
     return acc;
   }, {});
 
+  // Compute Core civil construction cost (CW-001)
+  const civilItem = boqItems.find(item => item.item_code === 'CW-001');
+  const coreCost = civilItem ? civilItem.amount : (costs.civilSubtotal || costs.subtotal || 0);
+
+  // Load or calculate stages breakdown dynamically
+  const stages = (result.stages_breakdown || result.output_json?.stages_breakdown || []).length > 0
+    ? (result.stages_breakdown || result.output_json?.stages_breakdown)
+    : [
+        {
+          stage: "Foundation & Basement Stage",
+          percentage: 20,
+          amount: Math.round(coreCost * 0.20),
+          desc: "Includes site cleaning, excavation, PCC foundation bed, footing reinforcement steel, brick masonry up to plinth level, and plinth beam concreting."
+        },
+        {
+          stage: "Concrete Slab & Structure Stage",
+          percentage: 30,
+          amount: Math.round(coreCost * 0.30),
+          desc: "Includes shuttering, reinforcement steel binding, column raising, beam layouts, and concrete casting for roof slabs."
+        },
+        {
+          stage: "Brickwork & Plastering Stage",
+          percentage: 20,
+          amount: Math.round(coreCost * 0.20),
+          desc: "Includes internal and external wall brickwork/blockwork and double coat plastering."
+        },
+        {
+          stage: "MEP (Electrical & Plumbing) Stage",
+          percentage: 15,
+          amount: Math.round(coreCost * 0.15),
+          desc: "Includes concealed wall piping, conduit laying, electrical box fixing, bathroom plumbing pipe layouts, and sanitary fittings."
+        },
+        {
+          stage: "Finishing & Woodworks Stage",
+          percentage: 15,
+          amount: Math.round(coreCost * 0.15),
+          desc: "Includes general flooring tiling, wall painting, and doors & windows framing and shutter installations."
+        }
+      ];
+
   const tabs = [
     { id: 'overview',        label: '📐 Key Quantities' },
+    { id: 'stages',          label: '🏗️ Stage-wise Split' },
     { id: 'boq',             label: '📋 Bill of Quantities (BOQ)' },
     { id: 'config_summary',  label: '📋 Configuration Summary' },
     { id: 'recommendations', label: `🤖 AI Recommendations (${(recommendations || []).length})` },
@@ -141,6 +213,19 @@ export default function EstimateResult() {
             display: block !important;
           }
           
+          .print-only-block {
+            display: block !important;
+          }
+
+          /* Hide duplicate stage split panel in print since it is printed on page 1 */
+          div.tab-panel.tab-panel-stages {
+            display: none !important;
+          }
+
+          .page-break-after {
+            page-break-after: always !important;
+          }
+          
           /* Force rendering of all tab-panels in one consolidated PDF document */
           .tab-panel {
             display: block !important;
@@ -152,11 +237,10 @@ export default function EstimateResult() {
             page-break-after: avoid !important;
           }
 
-          /* Format overview layout */
+          /* Make Grand Total Card full-width on print */
           .overview-grid {
-            display: grid !important;
-            grid-template-columns: 1fr 1.5fr !important;
-            gap: 16px !important;
+            display: block !important;
+            width: 100% !important;
             page-break-inside: avoid !important;
           }
           
@@ -169,18 +253,36 @@ export default function EstimateResult() {
           }
           
           /* Table prints cleanly with borders and wrap control */
+          .table-wrapper {
+            overflow: visible !important;
+            overflow-x: visible !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            display: block !important;
+          }
           table {
             width: 100% !important;
+            max-width: 100% !important;
             border-collapse: collapse !important;
+            table-layout: auto !important;
           }
           th, td {
             border: 1px solid #94a3b8 !important;
-            padding: 6px 10px !important;
-            font-size: 11px !important;
+            padding: 5px 8px !important;
+            font-size: 10px !important;
             color: #000 !important;
+            word-break: break-word !important;
+            white-space: normal !important;
           }
           tr {
             page-break-inside: avoid !important;
+          }
+
+          /* Stage-wise split must stay on one page */
+          .print-stage-split-card {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           
           .overview-total {
@@ -189,12 +291,15 @@ export default function EstimateResult() {
 
           @page {
             size: A4 portrait;
-            margin: 1.5cm;
+            margin: 1.2cm;
           }
         }
         
         @media screen {
           .print-only-header {
+            display: none !important;
+          }
+          .print-only-block {
             display: none !important;
           }
           .web-hidden {
@@ -229,7 +334,8 @@ export default function EstimateResult() {
             <div><strong>Customer Name:</strong> {inputData.customer_name || summary.customerName}</div>
             <div><strong>Mobile Number:</strong> {inputData.customer_mobile || '—'}</div>
             <div><strong>Email Address:</strong> {inputData.customer_email || '—'}</div>
-            <div><strong>Project Site Address:</strong> {inputData.project_address || '—'}</div>
+            <div><strong>District:</strong> {inputData.city || inputData.location || '—'}</div>
+            <div><strong>State:</strong> {inputData.state || 'Tamil Nadu'}</div>
           </div>
           <div style={{ border: '1px solid #cbd5e1', padding: '14px', borderRadius: '8px', background: '#f8fafc' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#0f766e', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '8px' }}>PROJECT SPECIFICATIONS</div>
@@ -414,7 +520,7 @@ export default function EstimateResult() {
         </div>
 
         {/* Category Breakdown */}
-        <div className="card" style={{ overflow:'hidden' }}>
+        <div className="card print-hide" style={{ overflow:'hidden' }}>
           <div className="card-header" style={{
             background:'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
             borderBottom:'1px solid var(--color-gray-100)',
@@ -452,6 +558,39 @@ export default function EstimateResult() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {/* Print-only Stage-wise Split on First Page */}
+      <div className="print-only-block page-break-after" style={{ marginTop: '10px', marginBottom: '16px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div className="card print-stage-split-card" style={{ padding: '14px', border: '1px solid #cbd5e1', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <div style={{ fontWeight: 800, fontSize: '14px', color: '#0f766e', borderBottom: '2.5px solid #0f766e', paddingBottom: '6px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🏗️</span> Stage-wise Construction Cost Split
+          </div>
+          <div className="table-wrapper">
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  <th style={{ textAlign: 'center', width: '5%', padding: '6px', whiteSpace: 'nowrap' }}>#</th>
+                  <th style={{ textAlign: 'left', width: '22%', padding: '6px', whiteSpace: 'nowrap' }}>Stage</th>
+                  <th style={{ textAlign: 'center', width: '10%', padding: '6px', whiteSpace: 'nowrap' }}>Percentage</th>
+                  <th style={{ textAlign: 'left', width: '48%', padding: '6px' }}>Description</th>
+                  <th style={{ textAlign: 'right', width: '15%', padding: '6px', whiteSpace: 'nowrap' }}>Estimated Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stages.map((stage, idx) => (
+                  <tr key={stage.stage} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold', padding: '6px', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                    <td style={{ fontWeight: 'bold', color: '#1e293b', padding: '6px', whiteSpace: 'nowrap' }}>{stage.stage}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#0f766e', padding: '6px', whiteSpace: 'nowrap' }}>{stage.percentage}%</td>
+                    <td style={{ color: '#475569', fontSize: '11px', lineHeight: '1.4', padding: '6px' }}>{stage.desc}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', padding: '6px', whiteSpace: 'nowrap' }}>{formatINR(stage.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -514,18 +653,18 @@ export default function EstimateResult() {
                 <tbody>
                   <tr><td className="td-bold">Cement ({result.input?.cementBrand || 'Standard Brand'})</td><td className="td-mono">{(quantities.cementBags || 0).toLocaleString()}</td><td>Bags (50kg)</td><td className="text-muted">Quality factor applied</td></tr>
                   <tr><td className="td-bold">Steel ({result.input?.steelGrade || 'Fe500'})</td><td className="td-mono">{(quantities.steelKg || 0).toLocaleString()}</td><td>Kg</td><td className="text-muted">TMT bars, quality factor applied</td></tr>
-                  <tr><td className="td-bold">Sand ({result.input?.sandType || 'M-Sand'})</td><td className="td-mono">{(quantities.sandCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">For masonry &amp; plaster</td></tr>
+                  <tr><td className="td-bold">Sand ({result.input?.sandType || 'M-Sand'})</td><td className="td-mono">{parseFloat(((quantities.sandCft || 0) / 100).toFixed(2)).toLocaleString()}</td><td>Units</td><td className="text-muted">For masonry &amp; plaster</td></tr>
                   {quantities.aggregate_40mm > 0 ? (
-                    <tr><td className="td-bold">40 mm Coarse Aggregate (For PCC &amp; Footings)</td><td className="td-mono">{(quantities.aggregate_40mm || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">40 mm Jelly</td></tr>
+                    <tr><td className="td-bold">40 mm Coarse Aggregate (For PCC &amp; Footings)</td><td className="td-mono">{parseFloat(((quantities.aggregate_40mm || 0) / 100).toFixed(2)).toLocaleString()}</td><td>Units</td><td className="text-muted">40 mm Jelly</td></tr>
                   ) : null}
                   {quantities.aggregate_20mm > 0 ? (
-                    <tr><td className="td-bold">20 mm Coarse Aggregate (For RCC Works)</td><td className="td-mono">{(quantities.aggregate_20mm || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">20 mm Jelly</td></tr>
+                    <tr><td className="td-bold">20 mm Coarse Aggregate (For RCC Works)</td><td className="td-mono">{parseFloat(((quantities.aggregate_20mm || 0) / 100).toFixed(2)).toLocaleString()}</td><td>Units</td><td className="text-muted">20 mm Jelly</td></tr>
                   ) : null}
                   {quantities.aggregate_12mm > 0 ? (
-                    <tr><td className="td-bold">12 mm Coarse Aggregate (For Sunshades &amp; Small RCC Works)</td><td className="td-mono">{(quantities.aggregate_12mm || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">12 mm Jelly</td></tr>
+                    <tr><td className="td-bold">12 mm Coarse Aggregate (For Sunshades &amp; Small RCC Works)</td><td className="td-mono">{parseFloat(((quantities.aggregate_12mm || 0) / 100).toFixed(2)).toLocaleString()}</td><td>Units</td><td className="text-muted">12 mm Jelly</td></tr>
                   ) : null}
                   {!quantities.aggregate_40mm && !quantities.aggregate_20mm && !quantities.aggregate_12mm ? (
-                    <tr><td className="td-bold">Coarse Aggregate</td><td className="td-mono">{(quantities.aggregateCft || 0).toLocaleString()}</td><td>Cft</td><td className="text-muted">20mm &amp; 40mm jelly</td></tr>
+                    <tr><td className="td-bold">Coarse Aggregate</td><td className="td-mono">{parseFloat(((quantities.aggregateCft || 0) / 100).toFixed(2)).toLocaleString()}</td><td>Units</td><td className="text-muted">20mm &amp; 40mm jelly</td></tr>
                   ) : null}
                   <tr><td className="td-bold">{result.input?.brickType || 'Standard Blocks'}</td><td className="td-mono">{(quantities.blocksQty || 0).toLocaleString()}</td><td>Nos</td><td className="text-muted">Walling &amp; partition</td></tr>
                   <tr><td className="td-bold">Flooring ({result.input?.flooringType || 'Vitrified'})</td><td className="td-mono">{(quantities.tilesArea || 0).toLocaleString()}</td><td>Sqft</td><td className="text-muted">Includes wastage percentage</td></tr>
@@ -615,14 +754,14 @@ export default function EstimateResult() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Floor</th>
-                      <th>Room Name</th>
-                      <th style={{ textAlign: 'right' }}>Dimensions</th>
-                      <th style={{ textAlign: 'right' }}>Area</th>
-                      <th style={{ textAlign: 'center' }}>Doors</th>
-                      <th style={{ textAlign: 'center' }}>Windows</th>
-                      <th style={{ textAlign: 'center' }}>Electrical Points</th>
-                      <th style={{ textAlign: 'center' }}>Plumbing Points</th>
+                      <th style={{ width: '12%' }}>Floor</th>
+                      <th style={{ width: '20%' }}>Room Name</th>
+                      <th style={{ textAlign: 'right', width: '15%' }}>Dimensions</th>
+                      <th style={{ textAlign: 'right', width: '12%' }}>Area</th>
+                      <th style={{ textAlign: 'center', width: '8%' }}>Doors</th>
+                      <th style={{ textAlign: 'center', width: '8%' }}>Windows</th>
+                      <th style={{ textAlign: 'center', width: '13%' }}>Electrical Points</th>
+                      <th style={{ textAlign: 'center', width: '12%' }}>Plumbing Points</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -682,7 +821,115 @@ export default function EstimateResult() {
         )}
       </div>
 
-      {/* PANEL 2: BOQ */}
+      {/* PANEL 2: Stage-wise Cost Breakdown */}
+      <div className={`tab-panel tab-panel-stages ${activeTab === 'stages' ? 'web-visible' : 'web-hidden'}`}>
+        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <div style={{ fontWeight: 800, fontSize: '18px', color: '#1e293b', marginBottom: '8px' }}>
+            🏗️ Stage-wise Construction Cost Split
+          </div>
+          <p className="text-muted" style={{ fontSize: '14px', marginBottom: '20px' }}>
+            Below is the phase-wise distribution of your core construction cost of <strong>{formatINR(coreCost)}</strong> (calculated at turnkey rates). Note that additional works are priced separately.
+          </p>
+
+          {/* Stacked Horizontal Bar Chart */}
+          <div style={{ display: 'flex', height: '32px', borderRadius: '16px', overflow: 'hidden', marginBottom: '32px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)' }}>
+            {[
+              { label: 'Foundation', pct: 20, bg: '#0f766e' },
+              { label: 'Structure', pct: 30, bg: '#6366f1' },
+              { label: 'Brickwork', pct: 20, bg: '#d97706' },
+              { label: 'MEP', pct: 15, bg: '#2563eb' },
+              { label: 'Finishing', pct: 15, bg: '#10b981' }
+            ].map((s) => (
+              <div
+                key={s.label}
+                style={{
+                  width: `${s.pct}%`,
+                  background: s.bg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                }}
+                title={`${s.label}: ${s.pct}%`}
+              >
+                {s.label} ({s.pct}%)
+              </div>
+            ))}
+          </div>
+
+          {/* Phase-wise Timeline Cards */}
+          <div style={{ display: 'grid', gap: '20px' }}>
+            {stages.map((stage, idx) => {
+              const accentColor = ['#0f766e', '#6366f1', '#d97706', '#2563eb', '#10b981'][idx % 5];
+              return (
+                <div
+                  key={stage.stage}
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    background: '#ffffff',
+                    borderLeft: `5px solid ${accentColor}`,
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '16px'
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <span style={{
+                        background: accentColor,
+                        color: '#ffffff',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: '12px'
+                      }}>
+                        {idx + 1}
+                      </span>
+                      <h4 style={{ margin: 0, fontWeight: 750, color: '#1e293b', fontSize: '15px' }}>
+                        {stage.stage}
+                      </h4>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        color: accentColor,
+                        background: `${accentColor}1A`,
+                        padding: '2px 8px',
+                        borderRadius: '12px'
+                      }}>
+                        {stage.percentage}%
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, color: '#475569', fontSize: '13px', lineHeight: '1.5' }}>
+                      {stage.desc}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '180px', alignItems: 'flex-end', borderLeft: '1px solid #e2e8f0', paddingLeft: '16px' }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                      Estimated Stage Cost
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#0f766e', fontFamily: 'monospace', marginTop: '4px' }}>
+                      {formatINR(stage.amount)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* PANEL 3: BOQ */}
       <div className={`tab-panel ${activeTab === 'boq' ? 'web-visible' : 'web-hidden'}`}>
         <div className="card" style={{ overflow:'hidden' }}>
           <div className="card-header" style={{
@@ -811,8 +1058,7 @@ export default function EstimateResult() {
               <div><strong>Customer Name:</strong> {inputData.customer_name || '—'}</div>
               <div><strong>Mobile Number:</strong> {inputData.customer_mobile || '—'}</div>
               <div><strong>Email Address:</strong> {inputData.customer_email || '—'}</div>
-              <div><strong>Site Address:</strong> {inputData.project_address || '—'}</div>
-              <div><strong>District:</strong> {inputData.district || '—'}</div>
+              <div><strong>District:</strong> {inputData.city || inputData.location || '—'}</div>
               <div><strong>State:</strong> {inputData.state || 'Tamil Nadu'}</div>
               <div style={{ marginTop: '8px', padding: '10px', background: 'rgba(15,118,110,0.06)', borderRadius: '8px', border: '1px solid rgba(15,118,110,0.15)' }}>
                 <strong>Chosen Package:</strong> <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{summary.quality} Tier</span> (₹{summary.quality === 'Base' ? 2100 : summary.quality === 'Standard' ? 2400 : summary.quality === 'Premium' ? 2600 : 2800}/sq.ft)
@@ -1016,6 +1262,17 @@ export default function EstimateResult() {
                 <>
                   <div><strong>Kitchen Area:</strong> {inputData.modular_kitchen_area} sq.ft</div>
                   <div><strong>Package:</strong> {inputData.modular_kitchen_package} Quality</div>
+                </>
+              ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
+            </div>
+
+            {/* Surkhi Weathering Course */}
+            <div style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: inputData.has_surkhi ? '#f0fdf4' : '#f8fafc' }}>
+              <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>🧱 Surkhi Weathering Course</div>
+              {inputData.has_surkhi ? (
+                <>
+                  <div><strong>Surkhi Area:</strong> {inputData.surkhi_area} sq.ft</div>
+                  <div><strong>Package:</strong> {inputData.surkhi_package} Quality</div>
                 </>
               ) : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Toggled Off — Excluded</span>}
             </div>
