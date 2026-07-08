@@ -1871,20 +1871,52 @@ export default function NewProject() {
           opacity: 1;
           animation: shimmer-slide 0.85s linear infinite;
         }
+
+        /* Mobile responsive: Wizard footer stacks buttons */
+        @media (max-width: 576px) {
+          .wizard-footer {
+            flex-direction: column !important;
+            gap: 10px !important;
+            align-items: stretch !important;
+            padding: 14px 16px !important;
+          }
+          .wizard-footer-main {
+            order: 1;
+            width: 100%;
+          }
+          .wizard-footer-main .btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .wizard-footer-back {
+            order: 2;
+            width: 100%;
+            display: flex;
+            gap: 8px;
+          }
+          .wizard-footer-back .btn {
+            flex: 1;
+            justify-content: center;
+          }
+          .generate-btn {
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+        }
       `}</style>
-      <div style={{
+      <div className="wizard-footer" style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '28px',
         padding: '16px 24px', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)', border: '1px solid var(--color-gray-200)', borderRadius: 'var(--border-radius-lg)',
         boxShadow: '0 -2px 16px rgba(15,118,110,0.06), var(--shadow-card)', position: 'sticky', bottom: '16px', zIndex: 10,
       }}>
-        <div>
+        <div className="wizard-footer-back">
           {step > 1 && (
             <button className="btn btn-secondary" onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>← Back</button>
           )}
-        </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button className="btn btn-ghost" onClick={() => navigate('/dashboard')}>Cancel</button>
+        </div>
+        <div className="wizard-footer-main" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {errors._global && (
             <div style={{ color: '#dc2626', fontSize: '13px', padding: '8px 12px', background: 'rgba(220,38,38,0.06)', borderRadius: '8px', border: '1px solid rgba(220,38,38,0.18)' }}>
               ⚠ {errors._global}

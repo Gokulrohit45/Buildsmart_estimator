@@ -32,7 +32,6 @@ const CAT_BAR_DATA = [
   { label: 'Painting',                cat: 'Painting',     val: (c) => c.paintingSubtotal },
   { label: 'Electrical',              cat: 'Electrical',   val: (c) => c.electricalSubtotal },
   { label: 'Plumbing',                cat: 'Plumbing',     val: (c) => c.plumbingSubtotal },
-  { label: 'Interiors',               cat: 'Interiors',    val: (c) => c.interiorSubtotal },
 ];
 
 const REC_GLOW = {
@@ -74,11 +73,36 @@ export default function EstimateResult() {
   });
   const inputData = result.input || result.input_json || {};
 
-  const categoryCosts = CATEGORIES.reduce((acc, cat) => {
-    const sum = boqItems.filter(item => item.category === cat).reduce((s, item) => s + (item.amount || 0), 0);
-    acc[cat] = sum;
-    return acc;
-  }, {});
+  // Build categoryCosts by scanning all boqItems and mapping 'Additional Works' to proper functional categories
+  const categoryCosts = CATEGORIES.reduce((acc, cat) => { acc[cat] = 0; return acc; }, {});
+  // Track total add-ons amount (all Additional Works items that are not the base CW-001 civil cost)
+  let totalAddonsAmount = 0;
+  boqItems.forEach(item => {
+    let cat = item.category;
+    if (cat === 'Additional Works') {
+      // All Additional Works items are add-ons — accumulate total separately
+      totalAddonsAmount += (item.amount || 0);
+      // Still map to functional category for BOQ grouping purposes
+      const desc = (item.description || '').toLowerCase();
+      if (desc.includes('false ceiling') || desc.includes('wardrobe') || desc.includes('modular kitchen') || desc.includes('interior decoration')) {
+        cat = 'Interiors';
+      } else if (desc.includes('septic') || desc.includes('sump') || desc.includes('overhead') || desc.includes('water tank') || desc.includes('underground')) {
+        cat = 'Plumbing';
+      } else {
+        cat = 'Civil Works';
+      }
+    }
+    if (categoryCosts[cat] !== undefined) {
+      categoryCosts[cat] += (item.amount || 0);
+    } else {
+      categoryCosts['Civil Works'] += (item.amount || 0);
+    }
+  });
+
+  // Civil Works base amount excludes the add-ons that were mapped into Civil Works category
+  // Re-compute clean civil base from CW-001 item directly
+  const civilBaseItem = boqItems.find(item => (item.code || item.item_code) === 'CW-001');
+  const cleanCivilBase = civilBaseItem ? (civilBaseItem.amount || 0) : (rawCosts.civilSubtotal || categoryCosts['Civil Works'] || 0);
 
   const subtotalVal = result.subtotal ?? rawCosts.subtotal ?? 0;
   const grandTotalVal = result.grand_total ?? rawCosts.grandTotal ?? 0;
@@ -86,13 +110,13 @@ export default function EstimateResult() {
   const contingencyPctVal = result.contingency_pct ?? rawCosts.contingencyPct ?? 5;
 
   const costs = {
-    civilSubtotal: rawCosts.civilSubtotal ?? categoryCosts['Civil Works'] ?? 0,
-    labourSubtotal: rawCosts.labourSubtotal ?? categoryCosts['Labour'] ?? 0,
-    flooringSubtotal: rawCosts.flooringSubtotal ?? categoryCosts['Flooring'] ?? 0,
-    paintingSubtotal: rawCosts.paintingSubtotal ?? categoryCosts['Painting'] ?? 0,
-    electricalSubtotal: rawCosts.electricalSubtotal ?? categoryCosts['Electrical'] ?? 0,
-    plumbingSubtotal: rawCosts.plumbingSubtotal ?? categoryCosts['Plumbing'] ?? 0,
-    interiorSubtotal: rawCosts.interiorSubtotal ?? categoryCosts['Interiors'] ?? 0,
+    civilSubtotal: cleanCivilBase,
+    labourSubtotal: 0,
+    flooringSubtotal: 0,
+    paintingSubtotal: 0,
+    electricalSubtotal: 0,
+    plumbingSubtotal: 0,
+    interiorSubtotal: 0,
     subtotal: subtotalVal,
     grandTotal: grandTotalVal,
     contingency: contingencyVal,
@@ -371,6 +395,34 @@ export default function EstimateResult() {
             display: none !important;
           }
         }
+
+        /* Mobile responsive: Bar chart labels */
+        .bar-label-short { display: none; }
+        .bar-label-full { display: inline; }
+        @media (max-width: 600px) {
+          .bar-label-full { display: none !important; }
+          .bar-label-short { display: inline !important; }
+        }
+
+        /* Mobile responsive: Stage split cards stack vertically */
+        @media (max-width: 620px) {
+          .timeline-stage-card {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .timeline-stage-cost {
+            min-width: 0 !important;
+            align-items: flex-start !important;
+            border-left: none !important;
+            padding-left: 0 !important;
+            border-top: 1px solid #e2e8f0 !important;
+            padding-top: 12px !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+          }
+        }
       `}</style>
 
       {/* ══════════════════════════════════════════════
@@ -490,7 +542,7 @@ export default function EstimateResult() {
               onMouseOver={e => !downloadingPdf && (e.currentTarget.style.background='rgba(14,165,233,0.28)')}
               onMouseOut={e => !downloadingPdf && (e.currentTarget.style.background='rgba(14,165,233,0.15)')}
             >
-              {downloadingPdf ? '⏳ Generating PDF...' : '🖨️ Print / PDF'}
+              {downloadingPdf ? '⏳ Generating PDF...' : '📥 Download PDF'}
             </button>
             <button
               onClick={handleEmailPdf}
@@ -622,34 +674,68 @@ export default function EstimateResult() {
           <div className="card-body p-0" style={{ padding: 0 }}>
             {CAT_BAR_DATA.map(({ label, cat, val }) => {
               const v = val(costs);
+              // These categories are always included in the base turnkey rate
+              const alwaysIncluded = ['Labour', 'Flooring', 'Painting', 'Electrical', 'Plumbing'].includes(cat);
               const pct = costs.subtotal > 0 ? Math.round((v / costs.subtotal) * 100) : 0;
               const palette = CAT_PALETTE[cat] || CAT_PALETTE['Civil Works'];
               return (
                 <div key={label} style={{ padding: '10px 22px', borderBottom: '1px solid var(--color-gray-100)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
                     <span style={{ fontSize:'12px', fontWeight:600, color:'var(--color-gray-700)',
-                      display:'flex', alignItems:'center', gap:'6px' }}>
+                      display:'flex', alignItems:'center', gap:'6px', flexShrink: 0 }}>
                       <span style={{ width:'8px', height:'8px', borderRadius:'50%',
                         background: palette.accent, display:'inline-block', flexShrink:0 }} />
                       {label}
                     </span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-gray-900)' }}>
-                      {formatINR(v)}{' '}
-                      <span style={{ color: 'var(--color-gray-400)', fontWeight: 400 }}>({pct}%)</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-gray-900)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {alwaysIncluded ? (
+                        <span style={{ color: '#0f766e', fontSize: '11px', background: 'rgba(15,118,110,0.09)', padding: '2px 9px', borderRadius: '6px', fontWeight: 700, letterSpacing: '0.2px' }}>&#10003; Included</span>
+                      ) : (
+                        <>
+                          <span>{formatINR(v)}</span>
+                          <span style={{ color: 'var(--color-gray-400)', fontWeight: 400, fontSize: '11px' }}>({pct}%)</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  {!alwaysIncluded && v > 0 && (
+                    <div className="progress-bar-bg">
+                      <div
+                        className="progress-bar-fill"
+                        style={{ width: `${pct}%`, background: palette.bar }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Add-ons row — only shown if customer selected any optional add-ons */}
+            {totalAddonsAmount > 0 && (() => {
+              const addPct = costs.subtotal > 0 ? Math.round((totalAddonsAmount / costs.subtotal) * 100) : 0;
+              return (
+                <div style={{ padding: '10px 22px', borderBottom: '1px solid var(--color-gray-100)', background: 'rgba(99,102,241,0.03)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
+                    <span style={{ fontSize:'12px', fontWeight:600, color:'var(--color-gray-700)',
+                      display:'flex', alignItems:'center', gap:'6px', flexShrink: 0 }}>
+                      <span style={{ width:'8px', height:'8px', borderRadius:'50%',
+                        background: '#6366f1', display:'inline-block', flexShrink:0 }} />
+                      Add-ons (Optional Works)
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-gray-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{formatINR(totalAddonsAmount)}</span>
+                      <span style={{ color: 'var(--color-gray-400)', fontWeight: 400, fontSize: '11px' }}>({addPct}%)</span>
                     </span>
                   </div>
                   <div className="progress-bar-bg">
                     <div
                       className="progress-bar-fill"
-                      style={{
-                        width: `${pct}%`,
-                        background: palette.bar,
-                      }}
+                      style={{ width: `${addPct}%`, background: 'linear-gradient(90deg,#6366f1,#a78bfa)' }}
                     />
                   </div>
                 </div>
               );
-            })}
+            })()}
           </div>
         </div>
       </div>
@@ -930,11 +1016,11 @@ export default function EstimateResult() {
           {/* Stacked Horizontal Bar Chart */}
           <div style={{ display: 'flex', height: '32px', borderRadius: '16px', overflow: 'hidden', marginBottom: '32px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)' }}>
             {[
-              { label: 'Foundation', pct: 20, bg: '#0f766e' },
-              { label: 'Structure', pct: 30, bg: '#6366f1' },
-              { label: 'Brickwork', pct: 20, bg: '#d97706' },
-              { label: 'MEP', pct: 15, bg: '#2563eb' },
-              { label: 'Finishing', pct: 15, bg: '#10b981' }
+              { label: 'Foundation', short: 'Fnd', pct: 20, bg: '#0f766e' },
+              { label: 'Structure', short: 'Str', pct: 30, bg: '#6366f1' },
+              { label: 'Brickwork', short: 'Brk', pct: 20, bg: '#d97706' },
+              { label: 'MEP', short: 'MEP', pct: 15, bg: '#2563eb' },
+              { label: 'Finishing', short: 'Fin', pct: 15, bg: '#10b981' }
             ].map((s) => (
               <div
                 key={s.label}
@@ -947,11 +1033,13 @@ export default function EstimateResult() {
                   color: '#ffffff',
                   fontSize: '11px',
                   fontWeight: 'bold',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                  overflow: 'hidden',
                 }}
                 title={`${s.label}: ${s.pct}%`}
               >
-                {s.label} ({s.pct}%)
+                <span className="bar-label-full">{s.label} ({s.pct}%)</span>
+                <span className="bar-label-short">{s.short} {s.pct}%</span>
               </div>
             ))}
           </div>
@@ -963,6 +1051,7 @@ export default function EstimateResult() {
               return (
                 <div
                   key={stage.stage}
+                  className="timeline-stage-card"
                   style={{
                     border: '1px solid #cbd5e1',
                     borderRadius: '12px',
@@ -977,7 +1066,7 @@ export default function EstimateResult() {
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
                       <span style={{
                         background: accentColor,
                         color: '#ffffff',
@@ -988,7 +1077,8 @@ export default function EstimateResult() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 'bold',
-                        fontSize: '12px'
+                        fontSize: '12px',
+                        flexShrink: 0,
                       }}>
                         {idx + 1}
                       </span>
@@ -1010,7 +1100,7 @@ export default function EstimateResult() {
                       {stage.desc}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '180px', alignItems: 'flex-end', borderLeft: '1px solid #e2e8f0', paddingLeft: '16px' }}>
+                  <div className="timeline-stage-cost" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '180px', alignItems: 'flex-end', borderLeft: '1px solid #e2e8f0', paddingLeft: '16px' }}>
                     <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>
                       Estimated Stage Cost
                     </div>
