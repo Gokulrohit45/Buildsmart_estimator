@@ -35,7 +35,7 @@ export default function Settings() {
     // Fetch settings
     projectsAPI.getSettings()
       .then(res => {
-        if (res && res.data) setGlobalSettings(res.data);
+        if (res && typeof res === 'object') setGlobalSettings(res);
       })
       .catch(err => console.error('Failed to load settings', err));
   }, []);

@@ -125,8 +125,8 @@ export default function NewProject() {
     async function loadSettings() {
       try {
         const res = await projectsAPI.getSettings();
-        if (res && res.success) {
-          setGlobalSettings(res.data || {});
+        if (res && typeof res === 'object') {
+          setGlobalSettings(res);
         }
       } catch (err) {
         console.error('Failed to load system settings:', err);
