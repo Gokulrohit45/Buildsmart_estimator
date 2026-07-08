@@ -40,6 +40,9 @@ export default function Sidebar({ role = 'builder', isOpen = false, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(getCurrentUser());
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('bs_sidebar_collapsed') === 'true';
+  });
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -48,6 +51,22 @@ export default function Sidebar({ role = 'builder', isOpen = false, onClose }) {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  useEffect(() => {
+    const handleCollapseChange = () => {
+      setIsCollapsed(localStorage.getItem('bs_sidebar_collapsed') === 'true');
+    };
+    window.addEventListener('sidebar-collapse-change', handleCollapseChange);
+    return () => window.removeEventListener('sidebar-collapse-change', handleCollapseChange);
+  }, []);
+
+  const toggleCollapse = (e) => {
+    e.stopPropagation(); // prevent navigation
+    const nextVal = !isCollapsed;
+    setIsCollapsed(nextVal);
+    localStorage.setItem('bs_sidebar_collapsed', String(nextVal));
+    window.dispatchEvent(new Event('sidebar-collapse-change'));
+  };
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -59,7 +78,7 @@ export default function Sidebar({ role = 'builder', isOpen = false, onClose }) {
   const displayRole = role === 'admin' ? 'Administrator' : 'Builder';
 
   return (
-    <aside className={`sidebar slide-in${isOpen ? ' open' : ''}`}>
+    <aside className={`sidebar slide-in${isOpen ? ' open' : ''}${isCollapsed ? ' collapsed' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-mark">
@@ -113,7 +132,27 @@ export default function Sidebar({ role = 'builder', isOpen = false, onClose }) {
             <div className="user-name">{displayName}</div>
             <div className="user-role">{displayRole}</div>
           </div>
-          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '14px', marginLeft: 'auto' }}>›</span>
+          <span
+            onClick={toggleCollapse}
+            style={{
+              color: 'rgba(255,255,255,0.4)',
+              fontSize: '18px',
+              marginLeft: 'auto',
+              padding: '6px 10px',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              background: 'rgba(255,255,255,0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.15)'}
+            onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'}
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isCollapsed ? '›' : '‹'}
+          </span>
         </div>
       </div>
     </aside>

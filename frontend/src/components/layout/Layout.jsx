@@ -1,9 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 export default function Layout({ children, role = 'user' }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem('bs_sidebar_collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    const handleCollapseChange = () => {
+      setIsCollapsed(localStorage.getItem('bs_sidebar_collapsed') === 'true');
+    };
+    window.addEventListener('sidebar-collapse-change', handleCollapseChange);
+    return () => window.removeEventListener('sidebar-collapse-change', handleCollapseChange);
+  }, []);
 
   return (
     <div className="app-layout">
@@ -19,7 +30,7 @@ export default function Layout({ children, role = 'user' }) {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="main-content">
+      <div className={`main-content${isCollapsed ? ' collapsed' : ''}`}>
         <Header
           role={role}
           onHamburgerClick={() => setSidebarOpen((prev) => !prev)}

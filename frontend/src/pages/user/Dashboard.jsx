@@ -344,23 +344,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Quick Tip ──────────────────────────────────────────────── */}
-      <div
-        className="alert alert-teal mt-16"
-        style={{
-          background: 'linear-gradient(135deg, #ccfbf1 0%, #cffafe 100%)',
-          border: '1px solid #5eead4',
-          borderRadius: '12px',
-          padding: '18px 20px',
-          boxShadow: '0 2px 12px rgba(15,118,110,0.10)',
-        }}
-      >
-        <span className="alert-icon" style={{ fontSize: '22px' }}>💡</span>
-        <div className="alert-body">
-          <div className="alert-title" style={{ color: '#0f766e', fontWeight: 700 }}>Quick Tip</div>
-          Steel prices are expected to rise 6–8% in Q3 2026. Consider locking in rates with your vendor before beginning structural work.
-        </div>
-      </div>
+
 
     </Layout>
   );

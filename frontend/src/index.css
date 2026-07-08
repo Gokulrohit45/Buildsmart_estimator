@@ -183,6 +183,40 @@ img { max-width: 100%; display: block; }
   border-right: 1px solid var(--sidebar-border);
 }
 
+/* Collapsible Sidebar on Desktop */
+@media (min-width: 769px) {
+  .sidebar.collapsed {
+    width: 70px !important;
+  }
+  .sidebar.collapsed .logo-text,
+  .sidebar.collapsed .nav-section-label,
+  .sidebar.collapsed .nav-item span:not(.nav-item-icon),
+  .sidebar.collapsed .user-info {
+    display: none !important;
+  }
+  .sidebar.collapsed .nav-item {
+    justify-content: center !important;
+    padding: 12px 0 !important;
+    gap: 0 !important;
+  }
+  .sidebar.collapsed .sidebar-logo {
+    padding: 22px 0 18px !important;
+  }
+  .sidebar.collapsed .sidebar-user {
+    justify-content: center !important;
+    padding: 8px 0 !important;
+  }
+  .sidebar.collapsed .sidebar-user span:last-child {
+    margin-left: 0 !important;
+  }
+  .main-content.collapsed {
+    margin-left: 70px !important;
+  }
+  .main-content.collapsed .header {
+    left: 70px !important;
+  }
+}
+
 /* Subtle top glow */
 .sidebar::before {
   content: '';

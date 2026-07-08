@@ -70,23 +70,23 @@ export default function Header({ role = 'user', onHamburgerClick }) {
 
       {/* Actions */}
       <div className="header-actions">
-        {/* Role switcher — hidden on mobile */}
         {!isMobile && (
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={handleSwitchRole}
-          title="Switch View"
-          data-role-switcher="true"
-          style={{ borderRadius: '20px', paddingLeft: '14px', paddingRight: '14px' }}
-        >
-          {role === 'builder' ? '🔐 Admin View' : '🏗 Builder View'}
-        </button>
+          <span
+            style={{
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: 'rgba(15,118,110,0.08)',
+              color: '#0f766e',
+              fontSize: '12px',
+              fontWeight: 700,
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              border: '1px solid rgba(15,118,110,0.18)',
+            }}
+          >
+            {role === 'admin' ? '🔐 Admin View' : '🏗 Builder View'}
+          </span>
         )}
-
-        {/* Notifications */}
-        <button className="icon-btn" title="Notifications">
-          🔔
-        </button>
 
         {/* User avatar */}
         <div
