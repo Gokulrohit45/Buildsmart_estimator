@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
-import { estimatesAPI, getCurrentUser } from '../../services/api';
+import { estimatesAPI, getCurrentUser, projectsAPI } from '../../services/api';
 import { INDIA_STATES, STATE_DISTRICTS } from '../../utils/indiaData';
 
 const STEPS = [
