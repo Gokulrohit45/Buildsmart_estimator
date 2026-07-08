@@ -44,9 +44,9 @@ export default function Settings() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate size (max 500KB to fit easily in text column)
-    if (file.size > 512000) {
-      setFileError('Profile picture must be under 500 KB.');
+    // Validate size (max 5MB to fit high-res logos easily)
+    if (file.size > 5242880) {
+      setFileError('Profile picture/logo must be under 5 MB.');
       return;
     }
     setFileError('');
@@ -195,7 +195,8 @@ export default function Settings() {
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--color-gray-400)', maxWidth: '200px', lineHeight: '1.5' }}>
-            Supports JPG, PNG formats.<br />Max size 500 KB.
+            Supports JPG, PNG formats.<br />Max size 5 MB.<br />
+            <span style={{ color: 'var(--color-teal-600)', fontWeight: 600 }}>This logo will appear on all generated PDF quotations.</span>
           </div>
 
           {fileError && (
@@ -210,7 +211,7 @@ export default function Settings() {
               onClick={() => setAvatarUrl('')}
               style={{ color: 'var(--color-danger)', marginTop: '16px', fontSize: '12px' }}
             >
-              Remove Photo
+              Remove Logo
             </button>
           )}
         </div>
@@ -224,7 +225,10 @@ export default function Settings() {
 
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="form-group">
-              <label className="form-label" style={{ fontWeight: 700 }}>Profile Name / Company Name <span style={{ color: '#dc2626' }}>*</span></label>
+              <label className="form-label" style={{ fontWeight: 700 }}>
+                Company Name / Construction Name <span style={{ color: '#dc2626' }}>*</span>
+                <span style={{ fontSize: '11px', color: '#0f766e', marginLeft: '8px', fontWeight: '500' }}>(Appears as the main branding name on all PDF reports)</span>
+              </label>
               <input
                 type="text"
                 className="form-control"

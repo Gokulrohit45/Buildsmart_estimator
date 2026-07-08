@@ -46,6 +46,7 @@ export default function EstimateResult() {
   const [result, setResult] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [emailStatus, setEmailStatus] = useState(null); // { success: boolean, text: string }
 
   useEffect(() => {
@@ -102,7 +103,38 @@ export default function EstimateResult() {
   const duration = result.duration || result.output_json?.duration || {};
   const recommendations = result.recommendations || result.output_json?.recommendations || [];
 
-  const handlePrint = () => window.print();
+  const handlePrint = async () => {
+    if (!result || !result.estimate_id) {
+      alert("Estimate ID not found.");
+      return;
+    }
+    try {
+      setDownloadingPdf(true);
+      const token = localStorage.getItem('bs_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/estimates/${result.estimate_id}/download-pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Quotation_${(result.project_name || 'project').replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (err) {
+      alert("Error printing PDF: " + err.message);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const handleEmailPdf = async () => {
     if (!result || !result.estimate_id) {
@@ -446,17 +478,19 @@ export default function EstimateResult() {
             </button>
             <button
               onClick={handlePrint}
+              disabled={downloadingPdf}
               style={{
                 background:'rgba(14,165,233,0.15)', border:'1px solid rgba(14,165,233,0.35)',
                 color:'#7dd3fc', borderRadius:'10px', padding:'9px 18px',
-                fontSize:'13px', fontWeight:600, cursor:'pointer',
+                fontSize:'13px', fontWeight:600, cursor: downloadingPdf ? 'not-allowed' : 'pointer',
                 display:'inline-flex', alignItems:'center', gap:'7px',
                 transition:'all 0.2s',
+                opacity: downloadingPdf ? 0.6 : 1,
               }}
-              onMouseOver={e => e.currentTarget.style.background='rgba(14,165,233,0.28)'}
-              onMouseOut={e => e.currentTarget.style.background='rgba(14,165,233,0.15)'}
+              onMouseOver={e => !downloadingPdf && (e.currentTarget.style.background='rgba(14,165,233,0.28)')}
+              onMouseOut={e => !downloadingPdf && (e.currentTarget.style.background='rgba(14,165,233,0.15)')}
             >
-              🖨️ Print / PDF
+              {downloadingPdf ? '⏳ Generating PDF...' : '🖨️ Print / PDF'}
             </button>
             <button
               onClick={handleEmailPdf}

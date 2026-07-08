@@ -690,8 +690,25 @@ def share_estimate_pdf(estimate_id):
         )
         items = items_res.data or []
 
+        # Fetch builder profile (company_name and avatar_url)
+        profile_res = (
+            supabase_admin
+            .table('profiles')
+            .select('company_name, avatar_url')
+            .eq('id', user.id)
+            .single()
+            .execute()
+        )
+        builder_profile = profile_res.data or {}
+        builder_name = builder_profile.get('company_name')
+        builder_logo = builder_profile.get('avatar_url')
+
         # 3. Generate PDF
-        pdf_bytes = generate_estimate_pdf(estimate, items)
+        pdf_bytes = generate_estimate_pdf(
+            estimate, items,
+            builder_name=builder_name,
+            builder_logo=builder_logo
+        )
 
         # Base64 encode the PDF
         import base64
@@ -769,6 +786,95 @@ def share_estimate_pdf(estimate_id):
 
         return jsonify({'success': True, 'message': f'Estimate PDF successfully emailed to {client_email} and {builder_email}.'}), 200
 
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
+# GET /api/estimates/<estimate_id>/download-pdf  –  download estimate PDF file
+# ---------------------------------------------------------------------------
+@estimates_bp.route('/<estimate_id>/download-pdf', methods=['GET'])
+def download_estimate_pdf(estimate_id):
+    """
+    Generate estimate PDF and send it as a downloadable response.
+    Requires: Authorization: Bearer <token>
+    """
+    try:
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Missing or invalid Authorization header.'}), 401
+        
+        token = auth_header[len('Bearer '):]
+        user_response = get_supabase_user(token)
+        user = user_response.user
+        if not user:
+            return jsonify({'error': 'Invalid or expired token.'}), 401
+
+        # Fetch estimate header
+        est_res = (
+            supabase_admin
+            .table('estimates')
+            .select('*')
+            .eq('id', estimate_id)
+            .single()
+            .execute()
+        )
+        if not est_res.data:
+            return jsonify({'error': 'Estimate not found.'}), 404
+        estimate = est_res.data
+
+        # Verify builder ownership
+        project_res = (
+            supabase_admin
+            .table('projects')
+            .select('*')
+            .eq('id', estimate['project_id'])
+            .single()
+            .execute()
+        )
+        if not project_res.data or project_res.data['builder_id'] != user.id:
+            return jsonify({'error': 'Access denied.'}), 403
+        project = project_res.data
+
+        # Fetch estimate items
+        items_res = (
+            supabase_admin
+            .table('estimate_items')
+            .select('*')
+            .eq('estimate_id', estimate_id)
+            .order('sort_order', desc=False)
+            .execute()
+        )
+        items = items_res.data or []
+
+        # Fetch builder profile (company_name and avatar_url)
+        profile_res = (
+            supabase_admin
+            .table('profiles')
+            .select('company_name, avatar_url')
+            .eq('id', user.id)
+            .single()
+            .execute()
+        )
+        builder_profile = profile_res.data or {}
+        builder_name = builder_profile.get('company_name')
+        builder_logo = builder_profile.get('avatar_url')
+
+        # Generate PDF
+        pdf_bytes = generate_estimate_pdf(
+            estimate, items,
+            builder_name=builder_name,
+            builder_logo=builder_logo
+        )
+
+        project_name = project.get('name', 'Quotation')
+        safe_filename = f"Estimate_{project_name.replace(' ', '_')}.pdf"
+        
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=safe_filename
+        )
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
 
