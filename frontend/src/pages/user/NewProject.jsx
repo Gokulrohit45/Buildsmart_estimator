@@ -178,20 +178,23 @@ export default function NewProject() {
 
   // Sync Floors list length when num_floors input changes
   const handleFloorsCountChange = (count) => {
-    const num = Math.max(1, parseInt(count) || 1);
     setForm((prev) => {
-      const list = [...prev.floors_list];
-      if (list.length < num) {
-        for (let i = list.length; i < num; i++) {
-          const names = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor'];
-          const name = names[i] || `Floor ${i}`;
-          const base = list[0] || { length: 40, width: 25, height: 10 };
-          list.push({ floor_num: i + 1, floor_name: name, length: base.length, width: base.width, height: base.height });
+      const num = count === '' ? '' : (parseInt(count) || 0);
+      if (num >= 1 && num <= 4) {
+        const list = [...prev.floors_list];
+        if (list.length < num) {
+          for (let i = list.length; i < num; i++) {
+            const names = ['Ground Floor', 'First Floor', 'Second Floor', 'Third Floor'];
+            const name = names[i] || `Floor ${i}`;
+            const base = list[0] || { length: 40, width: 25, height: 10 };
+            list.push({ floor_num: i + 1, floor_name: name, length: base.length, width: base.width, height: base.height });
+          }
+        } else if (list.length > num) {
+          list.splice(num);
         }
-      } else if (list.length > num) {
-        list.splice(num);
+        return { ...prev, num_floors: count === '' ? '' : num, floors_list: list };
       }
-      return { ...prev, num_floors: num, floors_list: list };
+      return { ...prev, num_floors: count === '' ? '' : num };
     });
   };
 
@@ -218,13 +221,13 @@ export default function NewProject() {
   };
 
   // Live Area Calculations
-  const plotArea = form.plot_length * form.plot_width;
-  const totalFloorArea = form.floors_list.reduce((sum, f) => sum + (parseFloat(f.length || 0) * parseFloat(f.width || 0)), 0);
-  const porticoArea = form.portico_length * form.portico_width;
-  const staircaseArea = form.staircase_length * form.staircase_width;
+  const plotArea = (parseFloat(form.plot_length) || 0) * (parseFloat(form.plot_width) || 0);
+  const totalFloorArea = form.floors_list.reduce((sum, f) => sum + ((parseFloat(f.length) || 0) * (parseFloat(f.width) || 0)), 0);
+  const porticoArea = (parseFloat(form.portico_length) || 0) * (parseFloat(form.portico_width) || 0);
+  const staircaseArea = (parseFloat(form.staircase_length) || 0) * (parseFloat(form.staircase_width) || 0);
   const totalBuiltupArea = totalFloorArea + porticoArea + staircaseArea;
 
-  const groundFloorArea = form.floors_list[0] ? (parseFloat(form.floors_list[0].length || 0) * parseFloat(form.floors_list[0].width || 0)) : 0;
+  const groundFloorArea = form.floors_list[0] ? ((parseFloat(form.floors_list[0].length) || 0) * (parseFloat(form.floors_list[0].width) || 0)) : 0;
   const groundCoverageArea = groundFloorArea + porticoArea + staircaseArea;
   const openArea = Math.max(0, plotArea - groundCoverageArea);
 
@@ -459,8 +462,8 @@ export default function NewProject() {
       }
     }
     if (step === 2 && targetStep > 2) {
-      if (form.plot_length <= 0) err.plot_length = 'Length must be greater than 0.';
-      if (form.plot_width <= 0) err.plot_width = 'Width must be greater than 0.';
+      if ((parseFloat(form.plot_length) || 0) <= 0) err.plot_length = 'Length must be greater than 0.';
+      if ((parseFloat(form.plot_width) || 0) <= 0) err.plot_width = 'Width must be greater than 0.';
     }
 
     if (Object.keys(err).length > 0) {
@@ -492,8 +495,8 @@ export default function NewProject() {
       }
     }
     if (step === 2) {
-      if (form.plot_length <= 0) err.plot_length = 'Length must be greater than 0.';
-      if (form.plot_width <= 0) err.plot_width = 'Width must be greater than 0.';
+      if ((parseFloat(form.plot_length) || 0) <= 0) err.plot_length = 'Length must be greater than 0.';
+      if ((parseFloat(form.plot_width) || 0) <= 0) err.plot_width = 'Width must be greater than 0.';
     }
 
     if (Object.keys(err).length > 0) {
@@ -517,30 +520,72 @@ export default function NewProject() {
       setLoading(true);
       setErrors({});
 
+      const sanitizedFloorsList = form.floors_list.map(f => ({
+        ...f,
+        length: parseFloat(f.length) || 0,
+        width: parseFloat(f.width) || 0,
+        height: parseFloat(f.height) || 0
+      }));
+
+      const sanitizedRoomsList = form.rooms_list.map(r => ({
+        ...r,
+        length: parseFloat(r.length) || 0,
+        width: parseFloat(r.width) || 0,
+        doors: r.doors.map(d => ({
+          ...d,
+          qty: parseInt(d.qty) || 0
+        })).filter(d => d.qty > 0),
+        windows: r.windows.map(w => ({
+          ...w,
+          qty: parseInt(w.qty) || 0
+        })).filter(w => w.qty > 0),
+        electrical: {
+          ...r.electrical,
+          light_points: parseInt(r.electrical?.light_points) || 0,
+          fan_points: parseInt(r.electrical?.fan_points) || 0,
+          plug_points: parseInt(r.electrical?.plug_points) || 0,
+          switch_boards: parseInt(r.electrical?.switch_boards) || 0,
+          ac_points: parseInt(r.electrical?.ac_points) || 0,
+        },
+        plumbing: {
+          ...r.plumbing,
+          wc: parseInt(r.plumbing?.wc) || 0,
+          wash_basin: parseInt(r.plumbing?.wash_basin) || 0,
+          shower: parseInt(r.plumbing?.shower) || 0,
+          faucet: parseInt(r.plumbing?.faucet) || 0,
+          sink: parseInt(r.plumbing?.sink) || 0,
+          inlet: parseInt(r.plumbing?.inlet) || 0,
+          washing_machine: parseInt(r.plumbing?.washing_machine) || 0,
+          utility_sink: parseInt(r.plumbing?.utility_sink) || 0,
+        }
+      }));
+
       const payload = {
         ...form,
         total_sqft: totalBuiltupArea,
-        plot_length: parseFloat(form.plot_length),
-        plot_width: parseFloat(form.plot_width),
-        portico_length: parseFloat(form.portico_length),
-        portico_width: parseFloat(form.portico_width),
-        staircase_length: parseFloat(form.staircase_length),
-        staircase_width: parseFloat(form.staircase_width),
-        compound_wall_length: form.has_compound_wall ? parseFloat(form.compound_wall_length) : 0,
-        compound_wall_height: form.has_compound_wall ? parseFloat(form.compound_wall_height) : 0,
-        gate_width: form.has_gate ? parseFloat(form.gate_width) : 0,
-        gate_height: form.has_gate ? parseFloat(form.gate_height) : 0,
-        water_tank_capacity: form.has_water_tank ? parseFloat(form.water_tank_capacity) : 0,
-        septic_tank_capacity: parseFloat(form.septic_tank_capacity),
-        front_elevation_width: form.has_front_elevation ? parseFloat(form.front_elevation_width) : 0,
-        front_elevation_height: form.has_front_elevation ? parseFloat(form.front_elevation_height) : 0,
-        false_ceiling_area: form.has_false_ceiling ? parseFloat(form.false_ceiling_area) : 0,
-        wardrobe_area: form.has_wardrobes ? parseFloat(form.wardrobe_area) : 0,
-        modular_kitchen_area: form.has_modular_kitchen ? parseFloat(form.modular_kitchen_area) : 0,
+        plot_length: parseFloat(form.plot_length) || 0,
+        plot_width: parseFloat(form.plot_width) || 0,
+        portico_length: parseFloat(form.portico_length) || 0,
+        portico_width: parseFloat(form.portico_width) || 0,
+        staircase_length: parseFloat(form.staircase_length) || 0,
+        staircase_width: parseFloat(form.staircase_width) || 0,
+        compound_wall_length: form.has_compound_wall ? (parseFloat(form.compound_wall_length) || 0) : 0,
+        compound_wall_height: form.has_compound_wall ? (parseFloat(form.compound_wall_height) || 0) : 0,
+        gate_width: form.has_gate ? (parseFloat(form.gate_width) || 0) : 0,
+        gate_height: form.has_gate ? (parseFloat(form.gate_height) || 0) : 0,
+        water_tank_capacity: form.has_water_tank ? (parseFloat(form.water_tank_capacity) || 0) : 0,
+        septic_tank_capacity: parseFloat(form.septic_tank_capacity) || 0,
+        front_elevation_width: form.has_front_elevation ? (parseFloat(form.front_elevation_width) || 0) : 0,
+        front_elevation_height: form.has_front_elevation ? (parseFloat(form.front_elevation_height) || 0) : 0,
+        false_ceiling_area: form.has_false_ceiling ? (parseFloat(form.false_ceiling_area) || 0) : 0,
+        wardrobe_area: form.has_wardrobes ? (parseFloat(form.wardrobe_area) || 0) : 0,
+        modular_kitchen_area: form.has_modular_kitchen ? (parseFloat(form.modular_kitchen_area) || 0) : 0,
         interior_area: 0,
-        contingency_percentage: parseFloat(form.contingency_percentage),
-        builder_margin_percentage: parseFloat(form.builder_margin_percentage),
-        gst_percentage: 0
+        contingency_percentage: parseFloat(form.contingency_percentage) || 0,
+        builder_margin_percentage: parseFloat(form.builder_margin_percentage) || 0,
+        gst_percentage: 0,
+        floors_list: sanitizedFloorsList,
+        rooms_list: sanitizedRoomsList
       };
 
       const res = await estimatesAPI.generate(payload);
@@ -701,12 +746,12 @@ export default function NewProject() {
                   <div className="form-row-2">
                     <div className="form-group">
                       <label className="form-label">Plot Length (feet)</label>
-                      <input className="form-control" type="number" min="1" value={form.plot_length} onChange={(e) => set('plot_length', parseFloat(e.target.value) || 0)} />
+                      <input className="form-control" type="number" min="1" value={form.plot_length} onChange={(e) => set('plot_length', e.target.value)} />
                       {errors.plot_length && <span className="error-text">{errors.plot_length}</span>}
                     </div>
                     <div className="form-group">
                       <label className="form-label">Plot Width (feet)</label>
-                      <input className="form-control" type="number" min="1" value={form.plot_width} onChange={(e) => set('plot_width', parseFloat(e.target.value) || 0)} />
+                      <input className="form-control" type="number" min="1" value={form.plot_width} onChange={(e) => set('plot_width', e.target.value)} />
                       {errors.plot_width && <span className="error-text">{errors.plot_width}</span>}
                     </div>
                   </div>
@@ -723,15 +768,15 @@ export default function NewProject() {
                       <div className="form-row-3">
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Floor Length (ft)</label>
-                          <input className="form-control" type="number" value={f.length} onChange={(e) => updateFloor(idx, 'length', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={f.length} onChange={(e) => updateFloor(idx, 'length', e.target.value)} />
                         </div>
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Floor Width (ft)</label>
-                          <input className="form-control" type="number" value={f.width} onChange={(e) => updateFloor(idx, 'width', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={f.width} onChange={(e) => updateFloor(idx, 'width', e.target.value)} />
                         </div>
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Ceiling Height (ft)</label>
-                          <input className="form-control" type="number" value={f.height} onChange={(e) => updateFloor(idx, 'height', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={f.height} onChange={(e) => updateFloor(idx, 'height', e.target.value)} />
                         </div>
                       </div>
                     </div>
@@ -742,15 +787,15 @@ export default function NewProject() {
                     <div className="form-group">
                       <label className="form-label">Portico Length / Width (ft)</label>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <input className="form-control" type="number" placeholder="L" value={form.portico_length} onChange={(e) => set('portico_length', parseFloat(e.target.value) || 0)} />
-                        <input className="form-control" type="number" placeholder="W" value={form.portico_width} onChange={(e) => set('portico_width', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" placeholder="L" value={form.portico_length} onChange={(e) => set('portico_length', e.target.value)} />
+                        <input className="form-control" type="number" placeholder="W" value={form.portico_width} onChange={(e) => set('portico_width', e.target.value)} />
                       </div>
                     </div>
                     <div className="form-group">
                       <label className="form-label">Staircase Length / Width (ft)</label>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <input className="form-control" type="number" placeholder="L" value={form.staircase_length} onChange={(e) => set('staircase_length', parseFloat(e.target.value) || 0)} />
-                        <input className="form-control" type="number" placeholder="W" value={form.staircase_width} onChange={(e) => set('staircase_width', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" placeholder="L" value={form.staircase_length} onChange={(e) => set('staircase_length', e.target.value)} />
+                        <input className="form-control" type="number" placeholder="W" value={form.staircase_width} onChange={(e) => set('staircase_width', e.target.value)} />
                       </div>
                     </div>
                   </div>
@@ -1012,11 +1057,11 @@ export default function NewProject() {
                           </div>
                           <div className="form-group">
                             <label className="form-label">Room Length (feet)</label>
-                            <input className="form-control" type="number" value={room.length} onChange={(e) => updateRoomField(origIdx, 'length', parseFloat(e.target.value) || 0)} />
+                            <input className="form-control" type="number" value={room.length} onChange={(e) => updateRoomField(origIdx, 'length', e.target.value)} />
                           </div>
                            <div className="form-group">
                             <label className="form-label">Room Width (feet)</label>
-                            <input className="form-control" type="number" value={room.width} onChange={(e) => updateRoomField(origIdx, 'width', parseFloat(e.target.value) || 0)} />
+                            <input className="form-control" type="number" value={room.width} onChange={(e) => updateRoomField(origIdx, 'width', e.target.value)} />
                           </div>
                         </div>
 
@@ -1024,7 +1069,7 @@ export default function NewProject() {
                           <div className="form-group">
                             <label className="form-label">Calculated Room Area</label>
                             <div className="form-control" style={{ fontWeight: 700, background: '#f1f5f9', color: '#0f766e', display: 'flex', alignItems: 'center' }}>
-                              {(room.length * room.width).toLocaleString()} sq.ft
+                              {((parseFloat(room.length) || 0) * (parseFloat(room.width) || 0)).toLocaleString()} sq.ft
                             </div>
                           </div>
                           <div className="form-group">
@@ -1048,14 +1093,15 @@ export default function NewProject() {
                                 className="form-control"
                                 type="number"
                                 style={{ width: '80px' }}
-                                value={room.doors[0]?.qty || 0}
+                                value={room.doors[0]?.qty !== undefined ? room.doors[0].qty : ''}
                                 onChange={(e) => {
-                                  const qty = parseInt(e.target.value) || 0;
-                                  const doors = qty > 0 ? [{ type: room.doors[0]?.type || 'Standard', width: 3, height: 7, qty }] : [];
+                                  const val = e.target.value;
+                                  const qty = val === '' ? '' : (parseInt(val) || 0);
+                                  const doors = val === '' || qty > 0 ? [{ type: room.doors[0]?.type || 'Standard', width: 3, height: 7, qty }] : [];
                                   updateRoomField(origIdx, 'doors', doors);
                                 }}
                               />
-                              {room.doors.length > 0 && (
+                              {room.doors.length > 0 && room.doors[0]?.qty !== '' && (
                                 <select
                                   className="form-control"
                                   value={room.doors[0].type}
@@ -1078,14 +1124,15 @@ export default function NewProject() {
                                 className="form-control"
                                 type="number"
                                 style={{ width: '80px' }}
-                                value={room.windows[0]?.qty || 0}
+                                value={room.windows[0]?.qty !== undefined ? room.windows[0].qty : ''}
                                 onChange={(e) => {
-                                  const qty = parseInt(e.target.value) || 0;
-                                  const windows = qty > 0 ? [{ type: room.windows[0]?.type || 'Standard', width: 4, height: 4, qty }] : [];
+                                  const val = e.target.value;
+                                  const qty = val === '' ? '' : (parseInt(val) || 0);
+                                  const windows = val === '' || qty > 0 ? [{ type: room.windows[0]?.type || 'Standard', width: 4, height: 4, qty }] : [];
                                   updateRoomField(origIdx, 'windows', windows);
                                 }}
                               />
-                              {room.windows.length > 0 && (
+                              {room.windows.length > 0 && room.windows[0]?.qty !== '' && (
                                 <select
                                   className="form-control"
                                   value={room.windows[0].type}
@@ -1120,23 +1167,23 @@ export default function NewProject() {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
                             <div className="form-group">
                               <label className="form-label" style={{ fontSize: '11px' }}>Light Points</label>
-                              <input className="form-control" type="number" value={room.electrical.light_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'light_points', parseInt(e.target.value) || 0)} />
+                              <input className="form-control" type="number" value={room.electrical.light_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'light_points', e.target.value)} />
                             </div>
                             <div className="form-group">
                               <label className="form-label" style={{ fontSize: '11px' }}>Fan Points</label>
-                              <input className="form-control" type="number" value={room.electrical.fan_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'fan_points', parseInt(e.target.value) || 0)} />
+                              <input className="form-control" type="number" value={room.electrical.fan_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'fan_points', e.target.value)} />
                             </div>
                             <div className="form-group">
                               <label className="form-label" style={{ fontSize: '11px' }}>Plug Points</label>
-                              <input className="form-control" type="number" value={room.electrical.plug_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'plug_points', parseInt(e.target.value) || 0)} />
+                              <input className="form-control" type="number" value={room.electrical.plug_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'plug_points', e.target.value)} />
                             </div>
                             <div className="form-group">
                               <label className="form-label" style={{ fontSize: '11px' }}>Switch Boards</label>
-                              <input className="form-control" type="number" value={room.electrical.switch_boards} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'switch_boards', parseInt(e.target.value) || 0)} />
+                              <input className="form-control" type="number" value={room.electrical.switch_boards} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'switch_boards', e.target.value)} />
                             </div>
                             <div className="form-group">
                               <label className="form-label" style={{ fontSize: '11px' }}>AC Points</label>
-                              <input className="form-control" type="number" value={room.electrical.ac_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'ac_points', parseInt(e.target.value) || 0)} />
+                              <input className="form-control" type="number" value={room.electrical.ac_points} onChange={(e) => updateRoomSubField(origIdx, 'electrical', 'ac_points', e.target.value)} />
                             </div>
                           </div>
                         </div>
@@ -1163,19 +1210,19 @@ export default function NewProject() {
                                 <>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Toilets (WC)</label>
-                                    <input className="form-control" type="number" value={room.plumbing.wc} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'wc', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.wc} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'wc', e.target.value)} />
                                   </div>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Wash Basin</label>
-                                    <input className="form-control" type="number" value={room.plumbing.wash_basin} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'wash_basin', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.wash_basin} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'wash_basin', e.target.value)} />
                                   </div>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Showers</label>
-                                    <input className="form-control" type="number" value={room.plumbing.shower} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'shower', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.shower} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'shower', e.target.value)} />
                                   </div>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Faucets</label>
-                                    <input className="form-control" type="number" value={room.plumbing.faucet} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'faucet', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.faucet} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'faucet', e.target.value)} />
                                   </div>
                                 </>
                               )}
@@ -1183,15 +1230,15 @@ export default function NewProject() {
                                 <>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Kitchen Sink</label>
-                                    <input className="form-control" type="number" value={room.plumbing.sink} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'sink', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.sink} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'sink', e.target.value)} />
                                   </div>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Water Inlet</label>
-                                    <input className="form-control" type="number" value={room.plumbing.inlet} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'inlet', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.inlet} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'inlet', e.target.value)} />
                                   </div>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Wash Basin</label>
-                                    <input className="form-control" type="number" value={room.plumbing.wash_basin || 0} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'wash_basin', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.wash_basin} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'wash_basin', e.target.value)} />
                                   </div>
                                 </>
                               )}
@@ -1199,11 +1246,11 @@ export default function NewProject() {
                                 <>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Machine Inlet</label>
-                                    <input className="form-control" type="number" value={room.plumbing.washing_machine} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'washing_machine', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.washing_machine} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'washing_machine', e.target.value)} />
                                   </div>
                                   <div className="form-group">
                                     <label className="form-label" style={{ fontSize: '11px' }}>Utility Sink</label>
-                                    <input className="form-control" type="number" value={room.plumbing.utility_sink} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'utility_sink', parseInt(e.target.value) || 0)} />
+                                    <input className="form-control" type="number" value={room.plumbing.utility_sink} onChange={(e) => updateRoomSubField(origIdx, 'plumbing', 'utility_sink', e.target.value)} />
                                   </div>
                                 </>
                               )}
@@ -1245,11 +1292,11 @@ export default function NewProject() {
                     <div className="form-row-2">
                        <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Compound Wall Length (ft)</label>
-                        <input className="form-control" type="number" value={form.compound_wall_length} onChange={(e) => set('compound_wall_length', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" value={form.compound_wall_length} onChange={(e) => set('compound_wall_length', e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Compound Wall Height (ft)</label>
-                        <input className="form-control" type="number" value={form.compound_wall_height} onChange={(e) => set('compound_wall_height', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" value={form.compound_wall_height} onChange={(e) => set('compound_wall_height', e.target.value)} />
                       </div>
                     </div>
                   ) : (
@@ -1273,11 +1320,11 @@ export default function NewProject() {
                       <div className="form-row-2">
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Gate Width (ft)</label>
-                          <input className="form-control" type="number" value={form.gate_width} onChange={(e) => set('gate_width', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={form.gate_width} onChange={(e) => set('gate_width', e.target.value)} />
                         </div>
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Gate Height (ft)</label>
-                          <input className="form-control" type="number" value={form.gate_height} onChange={(e) => set('gate_height', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={form.gate_height} onChange={(e) => set('gate_height', e.target.value)} />
                         </div>
                       </div>
                       <div className="form-group" style={{ marginTop: '10px' }}>
@@ -1306,7 +1353,7 @@ export default function NewProject() {
                   {form.has_water_tank ? (
                     <div className="form-group">
                       <label className="form-label">Sump Capacity (Litres)</label>
-                      <input className="form-control" type="number" placeholder="e.g. 12000" value={form.water_tank_capacity} onChange={(e) => set('water_tank_capacity', parseFloat(e.target.value) || 0)} />
+                      <input className="form-control" type="number" placeholder="e.g. 12000" value={form.water_tank_capacity} onChange={(e) => set('water_tank_capacity', e.target.value)} />
                     </div>
                   ) : (
                     <div style={{ fontSize: '12px', color: 'var(--color-gray-400)', fontStyle: 'italic' }}>Toggled Off — Cost excluded.</div>
@@ -1351,7 +1398,7 @@ export default function NewProject() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Septic Tank Capacity (Litres)</label>
-                    <input className="form-control" type="number" placeholder="e.g. 6000" value={form.septic_tank_capacity} onChange={(e) => set('septic_tank_capacity', parseFloat(e.target.value) || 0)} />
+                    <input className="form-control" type="number" placeholder="e.g. 6000" value={form.septic_tank_capacity} onChange={(e) => set('septic_tank_capacity', e.target.value)} />
                   </div>
                 </div>
 
@@ -1371,11 +1418,11 @@ export default function NewProject() {
                       <div className="form-row-2">
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Elevation Width (ft)</label>
-                          <input className="form-control" type="number" value={form.front_elevation_width} onChange={(e) => set('front_elevation_width', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={form.front_elevation_width} onChange={(e) => set('front_elevation_width', e.target.value)} />
                         </div>
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Elevation Height (ft)</label>
-                          <input className="form-control" type="number" value={form.front_elevation_height} onChange={(e) => set('front_elevation_height', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={form.front_elevation_height} onChange={(e) => set('front_elevation_height', e.target.value)} />
                         </div>
                       </div>
                       <div className="form-group" style={{ marginTop: '10px' }}>
@@ -1405,7 +1452,7 @@ export default function NewProject() {
                     <>
                       <div className="form-group">
                         <label className="form-label">False Ceiling Area (Sq.ft)</label>
-                        <input className="form-control" type="number" value={form.false_ceiling_area} onChange={(e) => set('false_ceiling_area', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" value={form.false_ceiling_area} onChange={(e) => set('false_ceiling_area', e.target.value)} />
                       </div>
                       <div className="form-group" style={{ marginTop: '10px' }}>
                         <label className="form-label">False Ceiling Package</label>
@@ -1442,7 +1489,7 @@ export default function NewProject() {
                         </div>
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: '11px' }}>Wardrobes Area (sqft)</label>
-                          <input className="form-control" type="number" value={form.wardrobe_area} onChange={(e) => set('wardrobe_area', parseFloat(e.target.value) || 0)} />
+                          <input className="form-control" type="number" value={form.wardrobe_area} onChange={(e) => set('wardrobe_area', e.target.value)} />
                         </div>
                       </div>
                       <div className="form-group">
@@ -1486,7 +1533,7 @@ export default function NewProject() {
                     <div className="form-row-2">
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Kitchen Area (sqft)</label>
-                        <input className="form-control" type="number" value={form.modular_kitchen_area} onChange={(e) => set('modular_kitchen_area', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" value={form.modular_kitchen_area} onChange={(e) => set('modular_kitchen_area', e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Kitchen Package</label>
@@ -1524,7 +1571,7 @@ export default function NewProject() {
                     <div className="form-row-2">
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Surkhi Area (sqft)</label>
-                        <input className="form-control" type="number" value={form.surkhi_area} onChange={(e) => set('surkhi_area', parseFloat(e.target.value) || 0)} />
+                        <input className="form-control" type="number" value={form.surkhi_area} onChange={(e) => set('surkhi_area', e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label className="form-label" style={{ fontSize: '11px' }}>Surkhi Package</label>
