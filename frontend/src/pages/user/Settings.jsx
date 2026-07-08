@@ -53,7 +53,36 @@ export default function Settings() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setAvatarUrl(reader.result); // Base64 Data URL
+      const dataUrl = reader.result;
+
+      // Convert to standard PNG to guarantee ReportLab compatibility (AVIF/WEBP etc.)
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 300;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const pngDataUrl = canvas.toDataURL('image/png');
+        setAvatarUrl(pngDataUrl);
+      };
+      img.onerror = () => {
+        // Fallback to raw data url if canvas drawing fails
+        setAvatarUrl(dataUrl);
+      };
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
   };

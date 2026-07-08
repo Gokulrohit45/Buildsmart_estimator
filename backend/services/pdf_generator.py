@@ -104,22 +104,23 @@ def generate_estimate_pdf(estimate, items, builder_name=None, builder_logo=None)
 
     # 1. Premium Header Banner
     if logo_flowable:
+        logo_flowable.hAlign = 'CENTER'
         banner_data = [
-            [logo_flowable, Paragraph(builder_name or "Buildsmart 360", TITLE)],
-            ["", Paragraph("DETAILED CONSTRUCTION COST ESTIMATE & BILL OF QUANTITIES (BOQ)", SUB)]
+            [Paragraph(builder_name or "Buildsmart 360", TITLE)],
+            [Spacer(1, 0.15 * cm)],
+            [logo_flowable],
+            [Spacer(1, 0.15 * cm)],
+            [Paragraph("DETAILED CONSTRUCTION COST ESTIMATE & BILL OF QUANTITIES (BOQ)", SUB)]
         ]
-        banner_table = Table(banner_data, colWidths=[2.2 * cm, CONTENT_W - 2.2 * cm])
+        banner_table = Table(banner_data, colWidths=[CONTENT_W])
         banner_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), C_PRIMARY),
-            ('ALIGN', (0,0), (0,-1), 'CENTER'),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('SPAN', (0,0), (0,1)), # Span logo across 2 rows
-            ('SPAN', (1,0), (1,0)),
-            ('SPAN', (1,1), (1,1)),
-            ('TOPPADDING', (0,0), (-1,-1), 12),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 12),
-            ('LEFTPADDING', (0,0), (-1,-1), 15),
-            ('RIGHTPADDING', (0,0), (-1,-1), 15),
+            ('TOPPADDING', (0,0), (-1,-1), 14),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 14),
+            ('LEFTPADDING', (0,0), (-1,-1), 20),
+            ('RIGHTPADDING', (0,0), (-1,-1), 20),
         ]))
     else:
         banner_data = [
@@ -402,8 +403,8 @@ def generate_estimate_pdf(estimate, items, builder_name=None, builder_logo=None)
         if not cat_items:
             continue
             
-        if cat in ['Painting', 'Additional Works']:
-            story.append(PageBreak()) # Push these categories to next page completely
+        if cat == 'Painting':
+            story.append(PageBreak()) # Push Painting to next page completely
             
         story.append(Paragraph(f"<b>Category: {cat}</b>", H2))
         
