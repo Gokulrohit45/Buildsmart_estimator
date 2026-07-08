@@ -100,6 +100,7 @@ export const adminAPI = {
   blockUser: (id) => request('PUT', `/api/admin/users/${id}/block`),
   createAdmin: (payload) => request('POST', '/api/admin/create-admin', payload),
   changePassword: (id, password) => request('PUT', `/api/admin/users/${id}/change-password`, { password }),
+  deleteUser: (id) => request('DELETE', `/api/admin/users/${id}`),
 
 
   // Rates

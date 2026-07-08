@@ -128,6 +128,26 @@ def block_user(user_id):
         return jsonify({'error': str(exc)}), 500
 
 
+# ---------------------------------------------------------------------------
+# DELETE /api/admin/users/<user_id>
+# ---------------------------------------------------------------------------
+@admin_bp.route('/users/<user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Permanently delete a builder or admin account."""
+    try:
+        current_admin_id = is_admin(request)
+        if current_admin_id == user_id:
+            return jsonify({'error': 'Cannot delete your own admin account.'}), 400
+
+        supabase_admin.auth.admin.delete_user(user_id)
+        return jsonify({'success': True, 'message': f'User {user_id} deleted successfully.'}), 200
+
+    except PermissionError as pe:
+        return jsonify({'error': str(pe)}), 403
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
+
 # ============================================================================
 # MATERIAL RATES
 # ============================================================================

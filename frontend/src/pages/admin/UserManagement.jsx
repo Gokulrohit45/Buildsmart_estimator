@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
-import { adminAPI } from '../../services/api';
+import { adminAPI, getCurrentUser } from '../../services/api';
 
 const STATUS_BADGE = {
   true: 'badge-green',    // is_approved = true → Active
@@ -42,6 +42,7 @@ function InitialsAvatar({ name, index, role }) {
 }
 
 export default function UserManagement() {
+  const loggedInUser = getCurrentUser() || {};
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -163,6 +164,21 @@ export default function UserManagement() {
       setUsers((prev) => prev.map((u) => u.id === id ? { ...u, is_approved: false } : u));
     } catch (err) {
       setError(err.message || 'Failed to block user.');
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this user account permanently?");
+    if (!confirmDelete) return;
+
+    setActionPending(id);
+    try {
+      await adminAPI.deleteUser(id);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } catch (err) {
+      setError(err.message || 'Failed to delete user.');
     } finally {
       setActionPending(null);
     }
@@ -338,35 +354,49 @@ export default function UserManagement() {
                         <td>
                           <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                              {u.role === 'admin' && (
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setSelectedUser(u)}
-                                title="Reset account password"
-                                style={{ padding: '4px 10px', fontWeight: 600 }}
-                              >
-                                🔑 Reset Pass
-                              </button>
+                               <>
+                                 <button
+                                   className="btn btn-secondary btn-sm"
+                                   onClick={() => setSelectedUser(u)}
+                                   title="Reset account password"
+                                   style={{ padding: '4px 10px', fontWeight: 600 }}
+                                 >
+                                   🔑 Reset Pass
+                                 </button>
+                                 {loggedInUser.id !== u.id && (
+                                   <button
+                                     className="btn btn-ghost btn-sm"
+                                     style={{ color: 'var(--color-danger)', border: '1px solid rgba(220,38,38,0.15)', padding: '4px 10px', fontWeight: 600 }}
+                                     onClick={() => handleDelete(u.id)}
+                                     disabled={isPending}
+                                   >
+                                     {isPending ? '…' : '🗑️ Delete'}
+                                   </button>
+                                 )}
+                               </>
                              )}
-                            {status === 'Pending' && (
-                              <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => handleApprove(u.id)}
-                                disabled={isPending}
-                                style={{ padding: '4px 12px', fontWeight: 600 }}
-                              >
-                                {isPending ? '…' : '✓ Approve'}
-                              </button>
-                            )}
-                            {status === 'Active' && (
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                style={{ color: 'var(--color-danger)', border: '1px solid rgba(220,38,38,0.15)', padding: '4px 12px', fontWeight: 600 }}
-                                onClick={() => handleBlock(u.id)}
-                                disabled={isPending}
-                              >
-                                {isPending ? '…' : '🚫 Block'}
-                              </button>
-                            )}
+                             {u.role !== 'admin' && (
+                               <>
+                                 {status === 'Pending' && (
+                                   <button
+                                     className="btn btn-primary btn-sm"
+                                     onClick={() => handleApprove(u.id)}
+                                     disabled={isPending}
+                                     style={{ padding: '4px 12px', fontWeight: 600 }}
+                                   >
+                                     {isPending ? '…' : '✓ Approve'}
+                                   </button>
+                                 )}
+                                 <button
+                                   className="btn btn-ghost btn-sm"
+                                   style={{ color: 'var(--color-danger)', border: '1px solid rgba(220,38,38,0.15)', padding: '4px 12px', fontWeight: 600 }}
+                                   onClick={() => handleDelete(u.id)}
+                                   disabled={isPending}
+                                 >
+                                   {isPending ? '…' : '🗑️ Delete'}
+                                 </button>
+                               </>
+                             )}
                           </div>
                         </td>
                       </tr>
