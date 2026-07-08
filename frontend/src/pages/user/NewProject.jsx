@@ -144,6 +144,11 @@ export default function NewProject() {
     }
   }, []);
 
+  // Scroll to top every time the step changes (after React re-renders the new step content)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
   const renderInclusionBadge = (featureKey) => {
     if (globalSettings[`include_${featureKey}_${form.quality.toLowerCase()}`] === 'true') {
       return (
@@ -476,7 +481,6 @@ export default function NewProject() {
     }
 
     setStep(targetStep);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNext = () => {
@@ -510,12 +514,10 @@ export default function NewProject() {
     }
 
     setStep(s => s + 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBack = () => {
     setStep(s => Math.max(1, s - 1));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGenerate = async () => {
