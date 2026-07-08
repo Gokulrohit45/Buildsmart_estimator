@@ -515,20 +515,6 @@ export default function EstimateResult() {
           {/* Right: action buttons */}
           <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', flexShrink:1 }}>
             <button
-              onClick={() => navigate('/new-estimate')}
-              style={{
-                background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.18)',
-                color:'#e2e8f0', borderRadius:'10px', padding:'9px 18px',
-                fontSize:'13px', fontWeight:600, cursor:'pointer',
-                display:'inline-flex', alignItems:'center', gap:'7px',
-                transition:'all 0.2s',
-              }}
-              onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.15)'}
-              onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.08)'}
-            >
-              ✏️ Edit Inputs
-            </button>
-            <button
               onClick={handlePrint}
               disabled={downloadingPdf}
               style={{
@@ -550,7 +536,7 @@ export default function EstimateResult() {
               style={{
                 background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)',
                 color: '#34d399', borderRadius: '10px', padding: '9px 18px',
-                fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                fontSize: '13px', fontWeight: 600, cursor: sendingEmail ? 'not-allowed' : 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: '7px',
                 transition: 'all 0.2s',
                 opacity: sendingEmail ? 0.6 : 1,
@@ -560,30 +546,35 @@ export default function EstimateResult() {
             >
               {sendingEmail ? '⏳ Sending...' : '📧 Email PDF'}
             </button>
-            <button
-              onClick={handleExportExcel}
-              style={{
-                background:'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)',
-                border:'none', color:'#ffffff', borderRadius:'10px', padding:'9px 20px',
-                fontSize:'13px', fontWeight:700, cursor:'pointer',
-                display:'inline-flex', alignItems:'center', gap:'7px',
-                boxShadow:'0 4px 14px rgba(15,118,110,0.45)',
-                transition:'all 0.2s',
-              }}
-              onMouseOver={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(15,118,110,0.6)'; }}
-              onMouseOut={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='0 4px 14px rgba(15,118,110,0.45)'; }}
-            >
-              📤 Export Excel
-            </button>
           </div>
         </div>
 
         {emailStatus && (
-          <div className={`alert ${emailStatus.success ? 'alert-green' : 'alert-red'}`} style={{ marginTop: '16px' }}>
-            <span className="alert-icon">{emailStatus.success ? '✨' : '⚠️'}</span>
-            <div className="alert-body">
-              <div className="alert-title">{emailStatus.text}</div>
+          <div style={{
+            marginTop: '16px',
+            padding: '12px 16px',
+            borderRadius: '10px',
+            background: emailStatus.success ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+            border: `1px solid ${emailStatus.success ? 'rgba(16,185,129,0.35)' : 'rgba(245,158,11,0.35)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '18px' }}>{emailStatus.success ? '✅' : '⚠️'}</span>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: emailStatus.success ? '#34d399' : '#fbbf24' }}>
+                  {emailStatus.success ? 'Email sent successfully!' : 'Unable to send email'}
+                </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>
+                  {emailStatus.success
+                    ? emailStatus.text
+                    : 'The email service is being configured. Please use “Download PDF” and share the PDF manually with your client.'}
+                </div>
+              </div>
             </div>
+            <button
+              onClick={() => setEmailStatus(null)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', fontSize: '16px', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}
+            >✕</button>
           </div>
         )}
 

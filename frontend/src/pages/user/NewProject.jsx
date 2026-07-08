@@ -476,6 +476,7 @@ export default function NewProject() {
     }
 
     setStep(targetStep);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNext = () => {
@@ -509,10 +510,12 @@ export default function NewProject() {
     }
 
     setStep(s => s + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBack = () => {
     setStep(s => Math.max(1, s - 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGenerate = async () => {
