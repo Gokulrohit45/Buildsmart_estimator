@@ -151,6 +151,9 @@ def login():
                 'role':         profile.get('role'),
                 'company_name': profile.get('company_name'),
                 'city':         profile.get('city'),
+                'phone':        profile.get('phone'),
+                'gstin':        profile.get('gstin'),
+                'avatar_url':   profile.get('avatar_url'),
                 'is_approved':  profile.get('is_approved'),
             },
         }), 200
