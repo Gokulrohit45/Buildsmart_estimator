@@ -54,6 +54,8 @@ export default function Dashboard() {
           padding: '32px 36px',
           marginBottom: '28px',
           display: 'flex',
+          flexWrap: 'wrap',
+          gap: '20px',
           alignItems: 'center',
           justifyContent: 'space-between',
           minHeight: '160px',

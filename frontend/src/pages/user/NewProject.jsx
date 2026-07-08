@@ -569,7 +569,7 @@ export default function NewProject() {
 
       {/* Steps Indicator */}
       <div className="card" style={{ marginBottom: '28px', padding: '20px 24px', borderTop: '4px solid #0f766e' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', overflowX: 'auto', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', overflowX: 'auto', gap: '16px', width: '100%' }}>
           {STEPS.map((s) => (
             <div
               key={s.num}
@@ -606,7 +606,7 @@ export default function NewProject() {
         {step === 1 && (
           <div className="card fade-in" style={{ borderTop: '3px solid #0891b2' }}>
             <div style={{ height: '4px', background: 'linear-gradient(90deg, #0891b2, #0f766e)', borderRadius: '4px 4px 0 0' }} />
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div className="card-title">👥 Project & Package Details</div>
               <button
                 type="button"
@@ -880,7 +880,7 @@ export default function NewProject() {
           <div className="card fade-in" style={{ borderTop: '3px solid #059669' }}>
             <div style={{ height: '4px', background: 'linear-gradient(90deg, #059669, #0f766e)', borderRadius: '4px 4px 0 0' }} />
             
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div className="card-title">🛏 Room & Openings Specifications</div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {form.floors_list.map(f => (

@@ -136,6 +136,8 @@ img { max-width: 100%; display: block; }
 .app-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
 }
 
 .main-content {
@@ -146,6 +148,8 @@ img { max-width: 100%; display: block; }
   min-height: 100vh;
   transition: margin-left 0.25s ease;
   background: var(--bg-base);
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-body {
@@ -546,6 +550,8 @@ img { max-width: 100%; display: block; }
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-card);
   transition: var(--transition);
+  width: 100%;
+  max-width: 100%;
 }
 
 .card:hover {
@@ -813,6 +819,8 @@ img { max-width: 100%; display: block; }
   overflow-x: auto;
   border-radius: var(--border-radius);
   border: 1px solid var(--color-gray-100);
+  width: 100%;
+  max-width: 100%;
 }
 
 table {
@@ -1476,7 +1484,11 @@ tbody tr:hover {
 /* ── 768px — Tablet portrait / large mobile ── */
 @media (max-width: 768px) {
   /* Layout */
-  .main-content { margin-left: 0 !important; }
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
   .page-body { padding: 16px 14px; margin-top: var(--header-height); }
 
   /* Sidebar: MUST override animation so transform works */
