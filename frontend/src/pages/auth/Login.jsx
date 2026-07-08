@@ -1,6 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, saveAuthSession } from '../../services/api';
+
+/* ─── Hook: tracks window width for responsive rendering ─── */
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return width;
+}
+
 
 export default function Login() {
   const navigate = useNavigate();
@@ -167,12 +179,15 @@ export default function Login() {
     }
   };
 
+  const isMobile = useWindowWidth() <= 768;
+
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, flexDirection: isMobile ? 'column' : 'row', overflowY: isMobile ? 'auto' : 'hidden' }}>
       <div style={styles.bgImage} />
       <div style={styles.overlay} />
 
-      {/* Left branding */}
+      {/* Left branding — hidden on mobile */}
+      {!isMobile && (
       <div style={styles.brandingArea}>
         <div style={styles.logoWrap}>
           <div style={styles.logoBox}>BS</div>
@@ -219,10 +234,80 @@ export default function Login() {
           ))}
         </div>
       </div>
+      )}
 
-      {/* Card */}
-      <div style={styles.cardWrap}>
-        <div style={styles.card}>
+      {/* Card Wrapper */}
+      <div style={{
+        ...styles.cardWrap,
+        minWidth: isMobile ? 'unset' : '440px',
+        width: isMobile ? '100%' : 'auto',
+        padding: isMobile ? '32px 16px' : '40px 48px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxSizing: 'border-box',
+      }}>
+        {/* Mobile Header block (Logo + Tagline + Stats) */}
+        {isMobile && (
+          <div style={{
+            width: '100%',
+            maxWidth: '408px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            marginBottom: '24px',
+          }}>
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', background: 'linear-gradient(135deg, #0f766e 0%, #0891b2 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '16px', color: 'white', boxShadow: '0 4px 14px rgba(15,118,110,0.4)' }}>BS</div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', letterSpacing: '-0.02em', lineHeight: 1.2 }}>Buildsmart 360</div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>AI Estimator Platform</div>
+              </div>
+            </div>
+
+            {/* Tagline */}
+            <div style={{ fontSize: '24px', fontWeight: 900, color: 'white', lineHeight: 1.3, letterSpacing: '-0.02em', marginBottom: '8px' }}>
+              Accurate estimates.<br />
+              <span style={styles.taglineAccent}>Built for Indian builders.</span>
+            </div>
+
+            {/* Sub-tagline */}
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', marginBottom: '16px' }}>
+              Generate detailed BOQs, material quantities & breakdowns in minutes
+            </div>
+
+            {/* Stat Row */}
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', width: '100%' }}>
+              {[
+                { label: 'Builders', value: '500+' },
+                { label: 'Estimates', value: '12,000+' },
+                { label: 'Cities', value: '25+' },
+              ].map((s) => (
+                <div key={s.label} style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.04)',
+                  backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '10px', padding: '6px 4px', textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: 900, background: 'linear-gradient(90deg, #2dd4bf, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{s.value}</div>
+                  <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1px' }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{
+          ...styles.card,
+          maxWidth: isMobile ? '100%' : '408px',
+          padding: isMobile ? '28px 22px 22px' : '38px 38px 30px',
+          width: '100%',
+        }}>
+
           <div style={styles.cardHeader}>
             <div style={styles.cardTitle}>
               {mode === 'login' ? 'Sign in to Buildsmart 360' : 'Create Account'}

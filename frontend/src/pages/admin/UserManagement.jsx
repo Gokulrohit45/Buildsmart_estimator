@@ -260,7 +260,7 @@ export default function UserManagement() {
       {/* Main Table Card */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div className="p-0">
-          <div className="table-wrapper" style={{ border: 'none' }}>
+          <div className="table-wrapper" style={{ border: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {loading ? (
               <div style={{ padding: '20px 0' }}>
                 {[1, 2, 3].map((n) => (
@@ -387,7 +387,7 @@ export default function UserManagement() {
           WebkitBackdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div className="card fade-in" style={{ width: '440px', margin: '0 20px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
+          <div className="card fade-in" style={{ width: '100%', maxWidth: '440px', margin: '0 20px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
             <div style={{ height: '4px', background: 'linear-gradient(90deg, #0f766e, #0891b2)', width: '100%' }} />
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, rgba(15,118,110,0.05), transparent)' }}>
               <div className="card-title">Create Admin Account</div>
@@ -464,7 +464,7 @@ export default function UserManagement() {
           WebkitBackdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }}>
-          <div className="card fade-in" style={{ width: '440px', margin: '0 20px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
+          <div className="card fade-in" style={{ width: '100%', maxWidth: '440px', margin: '0 20px', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
             <div style={{ height: '4px', background: 'linear-gradient(90deg, #7c3aed, #db2777)', width: '100%' }} />
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(to right, rgba(124,58,237,0.05), transparent)' }}>
               <div className="card-title">Reset User Password</div>

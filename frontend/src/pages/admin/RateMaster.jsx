@@ -266,7 +266,7 @@ export default function RateMaster() {
         </div>
 
         <div className="p-0">
-          <div className="table-wrapper" style={{ border: 'none' }}>
+          <div className="table-wrapper" style={{ border: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {loading ? (
               <div style={{ padding: '20px 0' }}>
                 {[1, 2, 3].map((n) => (

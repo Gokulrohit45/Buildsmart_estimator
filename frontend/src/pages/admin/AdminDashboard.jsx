@@ -86,10 +86,12 @@ export default function AdminDashboard() {
           borderRadius: '16px',
           padding: '28px 36px',
           display: 'flex',
+          flexWrap: 'wrap',
+          gap: '20px',
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: '28px',
-          minHeight: '140px',
+          minHeight: 'auto',
           position: 'relative',
           overflow: 'hidden',
           boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
@@ -203,7 +205,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── 2-col grid: City Stats + Recent Activity ────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '28px' }}>
 
         {/* City-wise Volume */}
         <div className="card" style={{ borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.07)' }}>
@@ -226,7 +228,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="p-0">
-            <div className="table-wrapper" style={{ border: 'none', borderRadius: '0 0 16px 16px' }}>
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: '0 0 16px 16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               {loading ? (
                 <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-gray-400)' }}>
                   <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
@@ -380,7 +382,7 @@ export default function AdminDashboard() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3,1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '16px',
         }}
       >

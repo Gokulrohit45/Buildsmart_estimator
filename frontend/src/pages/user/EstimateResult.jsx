@@ -393,7 +393,7 @@ export default function EstimateResult() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', fontSize: '13px', lineHeight: 1.6 }}>
+        <div className="form-row" style={{ gap: '24px', fontSize: '13px', lineHeight: 1.6 }}>
           <div style={{ border: '1px solid #cbd5e1', padding: '14px', borderRadius: '8px', background: '#f8fafc' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#0f766e', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px', marginBottom: '8px' }}>CLIENT DETAILS</div>
             <div><strong>Customer Name:</strong> {inputData.customer_name || summary.customerName}</div>
@@ -461,7 +461,7 @@ export default function EstimateResult() {
           </div>
 
           {/* Right: action buttons */}
-          <div style={{ display:'flex', gap:'10px', alignItems:'center', flexShrink:0 }}>
+          <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', flexShrink:1 }}>
             <button
               onClick={() => navigate('/new-estimate')}
               style={{
@@ -567,7 +567,7 @@ export default function EstimateResult() {
       {/* ══════════════════════════════════════════════
           OVERVIEW ROW
       ══════════════════════════════════════════════ */}
-      <div className="overview-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '24px' }}>
+      <div className="overview-grid" style={{ marginBottom: '24px' }}>
         {/* Grand Total Card */}
         <div className="card" style={{
           overflow:'hidden', position:'relative',
@@ -694,6 +694,9 @@ export default function EstimateResult() {
         display:'flex', gap:'4px',
         borderBottom:'2px solid var(--color-gray-100)',
         marginBottom:'20px',
+        overflowX: 'auto',
+        whiteSpace: 'nowrap',
+        WebkitOverflowScrolling: 'touch',
       }}>
         {tabs.map((t) => {
           const isActive = activeTab === t.id;
@@ -709,6 +712,7 @@ export default function EstimateResult() {
                 border:'none', borderRadius:'8px 8px 0 0', cursor:'pointer',
                 borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
                 marginBottom:'-2px', transition:'all 0.2s',
+                flexShrink: 0,
               }}
             >
               {t.label}

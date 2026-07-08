@@ -47,6 +47,7 @@ export default function Dashboard() {
 
       {/* ── Welcome Banner ─────────────────────────────────────────── */}
       <div
+        className="dashboard-welcome-banner"
         style={{
           background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #0f766e 100%)',
           borderRadius: '16px',
@@ -111,14 +112,18 @@ export default function Dashboard() {
         </div>
 
         {/* Right: action buttons */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          alignItems: 'flex-end',
-          position: 'relative',
-          zIndex: 1,
-        }}>
+        <div
+          className="banner-actions"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            alignItems: 'flex-end',
+            position: 'relative',
+            zIndex: 1,
+            flexShrink: 0,
+          }}
+        >
           <button
             onClick={() => navigate('/new-estimate')}
             style={{

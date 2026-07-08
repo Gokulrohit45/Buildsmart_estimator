@@ -574,9 +574,10 @@ export default function NewProject() {
             <div
               key={s.num}
               onClick={() => handleStepClick(s.num)}
+              className="step-indicator-item"
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                minWidth: '90px', flex: 1, cursor: 'pointer', transition: 'transform 0.2s'
+                flex: 1, cursor: 'pointer', transition: 'transform 0.2s'
               }}
               onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
               onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
@@ -591,7 +592,7 @@ export default function NewProject() {
               }}>
                 {step > s.num ? '✓' : s.num}
               </div>
-              <span style={{ fontSize: '11px', fontWeight: step === s.num ? 700 : 500, color: step === s.num ? '#0f766e' : '#64748b', textAlign: 'center' }}>
+              <span className="step-indicator-label" style={{ fontSize: '11px', fontWeight: step === s.num ? 700 : 500, color: step === s.num ? '#0f766e' : '#64748b', textAlign: 'center' }}>
                 {s.label}
               </span>
             </div>
@@ -660,7 +661,7 @@ export default function NewProject() {
 
               <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
                 <label className="form-label" style={{ marginBottom: '12px', display: 'block' }}>Select Construction Package</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
                   {QUALITY_OPTIONS.map((opt) => {
                     const isSel = form.quality === opt.key;
                     return (
@@ -694,7 +695,7 @@ export default function NewProject() {
             <div className="card-header"><div className="card-title">📏 Property & Building Specifications</div></div>
             <div className="card-body">
               
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+              <div className="overview-grid">
                 <div>
                   <div style={{ marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>📐 Plot dimensions</div>
                   <div className="form-row-2">
@@ -1037,7 +1038,7 @@ export default function NewProject() {
                         </div>
 
                         {/* Doors & Windows Sizing */}
-                        <div style={{ marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div className="form-row" style={{ marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
                           
                           {/* Doors */}
                           <div>

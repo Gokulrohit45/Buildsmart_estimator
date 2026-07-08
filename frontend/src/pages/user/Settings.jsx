@@ -158,7 +158,7 @@ export default function Settings() {
         </div>
       )}
 
-      <div className="grid-2col" style={{ gridTemplateColumns: '1fr 2fr', gap: '28px' }}>
+      <div className="grid-2col">
         {/* Left Col: Avatar Upload */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 24px', textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-primary)', marginBottom: '20px' }}>Profile Picture</div>

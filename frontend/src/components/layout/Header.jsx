@@ -2,6 +2,16 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { clearAuthSession, getCurrentUser } from '../../services/api';
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return width;
+}
+
 const PAGE_TITLES = {
   '/dashboard':     { title: 'Dashboard',       sub: 'Overview of your estimates and projects' },
   '/new-estimate':  { title: 'New Estimate',    sub: 'Generate a detailed AI construction estimate' },
@@ -13,11 +23,14 @@ const PAGE_TITLES = {
   '/admin/settings':{ title: 'System Settings', sub: 'Global system configuration' },
 };
 
-export default function Header({ role = 'user' }) {
+export default function Header({ role = 'user', onHamburgerClick }) {
   const navigate = useNavigate();
   const path = window.location.pathname;
   const pageInfo = PAGE_TITLES[path] || { title: 'Buildsmart 360', sub: '' };
   const [user, setUser] = useState(getCurrentUser());
+  const windowWidth = useWindowWidth();
+  const isSmall = windowWidth <= 480;
+  const isMobile = windowWidth <= 768;
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -39,6 +52,16 @@ export default function Header({ role = 'user' }) {
 
   return (
     <header className="header">
+      {/* Hamburger — visible only on mobile via CSS */}
+      <button
+        className="hamburger-btn"
+        onClick={onHamburgerClick}
+        title="Menu"
+        aria-label="Toggle navigation"
+      >
+        ☰
+      </button>
+
       {/* Page title */}
       <div className="header-breadcrumb">
         <div className="breadcrumb-title">{pageInfo.title}</div>
@@ -47,15 +70,18 @@ export default function Header({ role = 'user' }) {
 
       {/* Actions */}
       <div className="header-actions">
-        {/* Role switcher */}
+        {/* Role switcher — hidden on mobile */}
+        {!isMobile && (
         <button
           className="btn btn-secondary btn-sm"
           onClick={handleSwitchRole}
           title="Switch View"
+          data-role-switcher="true"
           style={{ borderRadius: '20px', paddingLeft: '14px', paddingRight: '14px' }}
         >
           {role === 'builder' ? '🔐 Admin View' : '🏗 Builder View'}
         </button>
+        )}
 
         {/* Notifications */}
         <button className="icon-btn" title="Notifications">
@@ -87,9 +113,9 @@ export default function Header({ role = 'user' }) {
         <button
           className="btn btn-ghost btn-sm"
           onClick={handleLogout}
-          style={{ color: 'var(--color-gray-500)' }}
+          style={{ color: 'var(--color-gray-500)', padding: isSmall ? '6px 8px' : undefined }}
         >
-          Sign Out
+          {isSmall ? '↪' : 'Sign Out'}
         </button>
       </div>
     </header>

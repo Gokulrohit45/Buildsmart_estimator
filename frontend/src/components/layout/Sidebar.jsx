@@ -36,7 +36,7 @@ const ADMIN_NAV = [
   },
 ];
 
-export default function Sidebar({ role = 'builder' }) {
+export default function Sidebar({ role = 'builder', isOpen = false, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(getCurrentUser());
@@ -49,12 +49,17 @@ export default function Sidebar({ role = 'builder' }) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (onClose) onClose();
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const navGroups = role === 'admin' ? ADMIN_NAV : USER_NAV;
   const displayName = user?.company_name || user?.email || (role === 'admin' ? 'Admin User' : 'Builder Account');
   const displayRole = role === 'admin' ? 'Administrator' : 'Builder';
 
   return (
-    <aside className="sidebar slide-in">
+    <aside className={`sidebar slide-in${isOpen ? ' open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-mark">

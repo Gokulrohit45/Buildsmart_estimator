@@ -244,7 +244,7 @@ export default function ProjectHistory() {
       {/* Main Card */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div className="p-0">
-          <div className="table-wrapper" style={{ border: 'none' }}>
+          <div className="table-wrapper" style={{ border: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             {loading ? (
               /* Shimmer skeletons instead of plain loading text */
               <div style={{ padding: '20px 0' }}>

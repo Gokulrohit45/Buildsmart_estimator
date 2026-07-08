@@ -154,7 +154,8 @@ function SettingRow({ label, sublabel, children }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      padding: '16px 0', borderBottom: '1px solid var(--color-gray-100)', gap: '24px',
+      padding: '16px 0', borderBottom: '1px solid var(--color-gray-100)', gap: '16px',
+      flexWrap: 'wrap',
       transition: 'background 0.15s',
     }}>
       <div style={{ flex: 1 }}>
@@ -229,7 +230,7 @@ export default function SystemSettings() {
     }
   };
 
-  const numberInputStyle = { width: '120px' };
+  const numberInputStyle = { width: '120px', maxWidth: '100%' };
 
   return (
     <Layout role="admin">
@@ -240,6 +241,8 @@ export default function SystemSettings() {
         padding: '28px 36px',
         marginBottom: '28px',
         display: 'flex',
+        flexWrap: 'wrap',
+        gap: '20px',
         alignItems: 'center',
         justifyContent: 'space-between',
         position: 'relative',
@@ -268,7 +271,7 @@ export default function SystemSettings() {
             className="btn btn-primary btn-lg"
             onClick={handleSave}
             disabled={saving || loading}
-            style={{ minWidth: '140px' }}
+            style={{ minWidth: 'auto' }}
           >
             {saving ? '⏳ Saving…' : '💾 Save Changes'}
           </button>
