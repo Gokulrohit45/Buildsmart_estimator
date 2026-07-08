@@ -487,8 +487,8 @@ export default function SystemSettings() {
           Check the boxes below to mark which features are <strong>included in the core package square foot rate</strong>.
           If checked, the estimated cost for that feature will be set to ₹0 in the builder's BOQ, indicating it is included in the package.
         </p>
-        <div className="table-responsive" style={{ background: '#0f172a', borderRadius: '12px', padding: '16px', border: '1px solid #1e293b' }}>
-          <table className="table" style={{ color: '#f8fafc', margin: 0, width: '100%' }}>
+        <div className="table-wrapper" style={{ background: '#0f172a', borderRadius: '12px', padding: '16px', border: '1px solid #1e293b', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table className="table" style={{ color: '#f8fafc', margin: 0, width: '100%', minWidth: '500px' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #334155' }}>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#38bdf8' }}>Feature Add-on</th>
