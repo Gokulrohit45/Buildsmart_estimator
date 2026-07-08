@@ -103,6 +103,8 @@
 html {
   font-size: 14px;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
@@ -117,6 +119,8 @@ body {
   background-image:
     radial-gradient(circle at 1px 1px, rgba(15,118,110,0.06) 1px, transparent 0);
   background-size: 32px 32px;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 
@@ -1577,14 +1581,21 @@ tbody tr:hover {
   /* Dashboard welcome banner stacks vertically */
   .dashboard-welcome-banner {
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: stretch !important;
     gap: 16px !important;
     padding: 18px 16px !important;
   }
   .dashboard-welcome-banner .banner-actions {
-    flex-direction: row !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  .dashboard-welcome-banner .banner-actions button {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
     align-items: center !important;
-    width: 100%;
   }
 
   /* Make header actions more compact */
