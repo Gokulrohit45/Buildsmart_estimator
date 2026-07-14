@@ -114,6 +114,43 @@ def create_project():
         if not name:
             return jsonify({'error': 'Project name is required.'}), 400
 
+        # Enforce range limits on input parameters
+        if total_sqft is not None and total_sqft != "":
+            try:
+                val = float(total_sqft)
+                if val < 100 or val > 100000:
+                    return jsonify({'error': 'Total built-up area must be between 100 and 100,000 sqft.'}), 400
+                total_sqft = val
+            except ValueError:
+                return jsonify({'error': 'Total built-up area must be a valid number.'}), 400
+
+        if floors is not None and floors != "":
+            try:
+                val = int(floors)
+                if val < 1 or val > 10:
+                    return jsonify({'error': 'Number of floors must be between 1 and 10.'}), 400
+                floors = val
+            except ValueError:
+                return jsonify({'error': 'Number of floors must be a valid integer.'}), 400
+
+        if bedrooms is not None and bedrooms != "":
+            try:
+                val = int(bedrooms)
+                if val < 0 or val > 50:
+                    return jsonify({'error': 'Number of bedrooms must be between 0 and 50.'}), 400
+                bedrooms = val
+            except ValueError:
+                return jsonify({'error': 'Number of bedrooms must be a valid integer.'}), 400
+
+        if bathrooms is not None and bathrooms != "":
+            try:
+                val = int(bathrooms)
+                if val < 0 or val > 50:
+                    return jsonify({'error': 'Number of bathrooms must be between 0 and 50.'}), 400
+                bathrooms = val
+            except ValueError:
+                return jsonify({'error': 'Number of bathrooms must be a valid integer.'}), 400
+
         insert_payload = {
             'builder_id':    user_id,
             'name':          name,

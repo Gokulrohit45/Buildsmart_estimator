@@ -10,7 +10,6 @@ export default function Settings() {
   const [companyName, setCompanyName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
-  const [gstin, setGstin] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   
   const [loading, setLoading] = useState(false);
@@ -29,7 +28,6 @@ export default function Settings() {
     setCompanyName(user.company_name || '');
     setPhone(user.phone || '');
     setCity(user.city || '');
-    setGstin(user.gstin || '');
     setAvatarUrl(user.avatar_url || '');
 
     // Fetch settings
@@ -103,7 +101,6 @@ export default function Settings() {
         company_name: companyName,
         phone,
         city,
-        gstin,
         avatar_url: avatarUrl
       };
 
@@ -292,16 +289,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ fontWeight: 700 }}>GSTIN</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="e.g. 33AAAAA1111A1Z1"
-                value={gstin}
-                onChange={e => setGstin(e.target.value)}
-              />
-            </div>
+
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
               <button

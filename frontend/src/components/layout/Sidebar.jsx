@@ -85,7 +85,7 @@ export default function Sidebar({ role = 'builder', isOpen = false, onClose }) {
           <div className="logo-icon">BS</div>
           <div className="logo-text">
             <span className="logo-name">Buildsmart</span>
-            <span className="logo-sub" style={{ letterSpacing: '2.5px', fontWeight: '800', color: 'var(--color-teal-400)' }}>360</span>
+            <span className="logo-sub" style={{ letterSpacing: '2.5px', fontWeight: '800', color: 'var(--color-primary-light)' }}>360</span>
           </div>
         </div>
       </div>

@@ -87,13 +87,81 @@ def generate_estimate():
     try:
         data    = request.get_json(force=True) or {}
 
-        # Validate customer email and phone if provided
+        # Validate structured input variables
+        total_sqft = data.get('total_sqft') or data.get('totalSqft')
+        floors = data.get('floors')
+        bedrooms = data.get('bedrooms')
+        bathrooms = data.get('bathrooms')
+
+        contingency_percentage = data.get('contingency_percentage') or data.get('contingencyPercentage')
+        builder_margin_percentage = data.get('builder_margin_percentage') or data.get('builderMarginPercentage')
+        gst_percentage = data.get('gst_percentage') or data.get('gstPercentage')
+
+        if total_sqft is not None and total_sqft != "":
+            try:
+                val = float(total_sqft)
+                if val < 100 or val > 100000:
+                    return jsonify({'error': 'Total built-up area must be between 100 and 100,000 sqft.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Total built-up area must be a valid number.'}), 400
+
+        if floors is not None and floors != "":
+            try:
+                val = int(floors)
+                if val < 1 or val > 10:
+                    return jsonify({'error': 'Number of floors must be between 1 and 10.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Number of floors must be a valid integer.'}), 400
+
+        if bedrooms is not None and bedrooms != "":
+            try:
+                val = int(bedrooms)
+                if val < 0 or val > 50:
+                    return jsonify({'error': 'Number of bedrooms must be between 0 and 50.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Number of bedrooms must be a valid integer.'}), 400
+
+        if bathrooms is not None and bathrooms != "":
+            try:
+                val = int(bathrooms)
+                if val < 0 or val > 50:
+                    return jsonify({'error': 'Number of bathrooms must be between 0 and 50.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Number of bathrooms must be a valid integer.'}), 400
+
+        if contingency_percentage is not None and contingency_percentage != "":
+            try:
+                val = float(contingency_percentage)
+                if val < 0 or val > 100:
+                    return jsonify({'error': 'Contingency percentage must be between 0 and 100.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Contingency percentage must be a valid number.'}), 400
+
+        if builder_margin_percentage is not None and builder_margin_percentage != "":
+            try:
+                val = float(builder_margin_percentage)
+                if val < 0 or val > 100:
+                    return jsonify({'error': 'Builder margin percentage must be between 0 and 100.'}), 400
+            except ValueError:
+                return jsonify({'error': 'Builder margin percentage must be a valid number.'}), 400
+
+        if gst_percentage is not None and gst_percentage != "":
+            try:
+                val = float(gst_percentage)
+                if val < 0 or val > 100:
+                    return jsonify({'error': 'GST percentage must be between 0 and 100.'}), 400
+            except ValueError:
+                return jsonify({'error': 'GST percentage must be a valid number.'}), 400
+
+        # Validate customer email (mandatory) and phone if provided
         import re
         cust_email = data.get('customer_email') or data.get('customerEmail')
-        if cust_email and str(cust_email).strip():
-            email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
-            if not re.match(email_regex, str(cust_email).strip()):
-                return jsonify({'error': 'Please enter a valid customer email address.'}), 400
+        if not cust_email or not str(cust_email).strip():
+            return jsonify({'error': 'Customer email address is required.'}), 400
+
+        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_regex, str(cust_email).strip()):
+            return jsonify({'error': 'Please enter a valid customer email address.'}), 400
 
         cust_mobile = data.get('customer_mobile') or data.get('customerMobile')
         if cust_mobile and str(cust_mobile).strip():
@@ -299,7 +367,24 @@ def list_estimates_for_project(project_id):
     Return all estimates for a given project (ordered newest first).
     """
     try:
-        get_user_id_from_token(request)   # just authenticate; no ownership filter here
+        user_id = get_user_id_from_token(request)
+
+        # Verify project ownership first
+        try:
+            project_res = (
+                supabase_admin
+                .table('projects')
+                .select('builder_id')
+                .eq('id', project_id)
+                .single()
+                .execute()
+            )
+            if not project_res.data or project_res.data.get('builder_id') != user_id:
+                return jsonify({'error': 'Project not found or access denied.'}), 404
+        except Exception as p_exc:
+            if 'No rows found' in str(p_exc) or 'PGRST116' in str(p_exc):
+                return jsonify({'error': 'Project not found or access denied.'}), 404
+            raise p_exc
 
         response = (
             supabase_admin
@@ -327,7 +412,7 @@ def get_estimate(estimate_id):
     Return a single estimate with all its BOQ line items.
     """
     try:
-        get_user_id_from_token(request)
+        user_id = get_user_id_from_token(request)
 
         # Fetch estimate header
         estimate_resp = (
@@ -343,6 +428,27 @@ def get_estimate(estimate_id):
             return jsonify({'error': 'Estimate not found.'}), 404
 
         estimate = estimate_resp.data
+        project_id = estimate.get('project_id')
+
+        # Verify project ownership
+        if project_id:
+            try:
+                project_res = (
+                    supabase_admin
+                    .table('projects')
+                    .select('builder_id')
+                    .eq('id', project_id)
+                    .single()
+                    .execute()
+                )
+                if not project_res.data or project_res.data.get('builder_id') != user_id:
+                    return jsonify({'error': 'Estimate not found or access denied.'}), 404
+            except Exception as p_exc:
+                if 'No rows found' in str(p_exc) or 'PGRST116' in str(p_exc):
+                    return jsonify({'error': 'Estimate not found or access denied.'}), 404
+                raise p_exc
+        else:
+            return jsonify({'error': 'Estimate not associated with any project.'}), 400
 
         # Fetch associated BOQ items
         items_resp = (
@@ -393,7 +499,7 @@ def export_estimate_excel(estimate_id):
     the estimate summary and full itemized BOQ.
     """
     try:
-        get_user_id_from_token(request)
+        user_id = get_user_id_from_token(request)
 
         # 1. Fetch estimate header
         estimate_resp = (
@@ -410,6 +516,11 @@ def export_estimate_excel(estimate_id):
 
         estimate = estimate_resp.data
         project = estimate.get('projects', {})
+        
+        # Verify ownership of project
+        if not project or project.get('builder_id') != user_id:
+            return jsonify({'error': 'Estimate not found or access denied.'}), 404
+
         if project and 'quality' in project:
             project['quality'] = map_quality_from_db(project['quality'])
         output_json = estimate.get('output_json', {})
@@ -642,16 +753,7 @@ def share_estimate_pdf(estimate_id):
     Requires: Authorization: Bearer <token>
     """
     try:
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            return jsonify({'error': 'Missing or invalid Authorization header.'}), 401
-
-        token = auth_header[len('Bearer '):]
-        user_response = get_supabase_user(token)
-        user = user_response.user
-
-        if not user:
-            return jsonify({'error': 'Invalid or expired token.'}), 401
+        user_id = get_user_id_from_token(request)
 
         # 1. Fetch estimate header
         est_res = (
@@ -675,7 +777,7 @@ def share_estimate_pdf(estimate_id):
             .single()
             .execute()
         )
-        if not project_res.data or project_res.data['builder_id'] != user.id:
+        if not project_res.data or project_res.data['builder_id'] != user_id:
             return jsonify({'error': 'Access denied.'}), 403
         project = project_res.data
 
@@ -690,12 +792,12 @@ def share_estimate_pdf(estimate_id):
         )
         items = items_res.data or []
 
-        # Fetch builder profile (company_name and avatar_url)
+        # Fetch builder profile (company_name, avatar_url, and email)
         profile_res = (
             supabase_admin
             .table('profiles')
-            .select('company_name, avatar_url')
-            .eq('id', user.id)
+            .select('company_name, avatar_url, email')
+            .eq('id', user_id)
             .single()
             .execute()
         )
@@ -715,7 +817,7 @@ def share_estimate_pdf(estimate_id):
         pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
 
         # 4. Determine emails
-        builder_email = user.email
+        builder_email = builder_profile.get('email')
         inj = estimate.get('input_json') or {}
         client_email = inj.get('customer_email') or inj.get('customerEmail')
         
@@ -762,7 +864,7 @@ def share_estimate_pdf(estimate_id):
             "sender": {"name": sender_name, "email": sender_email},
             "to": [
                 {"email": client_email, "name": (inj.get('customer_name') or 'Client')},
-                {"email": builder_email, "name": (user.email.split('@')[0] or 'Builder')}
+                {"email": builder_email, "name": (builder_email.split('@')[0] if builder_email else 'Builder')}
             ],
             "subject": f"Construction Cost Estimate - {project_name}",
             "htmlContent": html_content,
@@ -799,15 +901,7 @@ def download_estimate_pdf(estimate_id):
     Requires: Authorization: Bearer <token>
     """
     try:
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            return jsonify({'error': 'Missing or invalid Authorization header.'}), 401
-        
-        token = auth_header[len('Bearer '):]
-        user_response = get_supabase_user(token)
-        user = user_response.user
-        if not user:
-            return jsonify({'error': 'Invalid or expired token.'}), 401
+        user_id = get_user_id_from_token(request)
 
         # Fetch estimate header
         est_res = (
@@ -831,7 +925,7 @@ def download_estimate_pdf(estimate_id):
             .single()
             .execute()
         )
-        if not project_res.data or project_res.data['builder_id'] != user.id:
+        if not project_res.data or project_res.data['builder_id'] != user_id:
             return jsonify({'error': 'Access denied.'}), 403
         project = project_res.data
 
@@ -851,7 +945,7 @@ def download_estimate_pdf(estimate_id):
             supabase_admin
             .table('profiles')
             .select('company_name, avatar_url')
-            .eq('id', user.id)
+            .eq('id', user_id)
             .single()
             .execute()
         )

@@ -1,0 +1,17 @@
+# BuildSmart 360 Security Status — Business Logic
+
+This document lists the implementation status for all security requirements in the **Business Logic** category.
+
+1. ⚪ **Not Applicable** — OTP or MFA must be prompted when a user attempts to update sensitive account details such as email address or phone number. *(Profile updates only affect company metadata; primary identity transitions (email changes) are validated via Supabase Auth native verification flows.)*
+2. ⚪ **Not Applicable** — Business logic flows must be processed in their defined sequence. Step skipping must not be possible. *(We do not have sequential checkouts, wizard funnels, or stateful transaction chains; estimation is a single stateless request.)*
+3. ⚪ **Not Applicable** — Actions within business flows must be subject to timing controls that prevent completion at an unrealistically fast pace. *(No multi-step time-constrained business processes exist.)*
+4. 🟢 **Already Implemented** — Limits must be applied to how many times a user can perform sensitive actions such as transactions or API requests within a defined window. *(Centralized API rate limits (5 req/min on auth, 30 req/min on endpoints) are enforced via Flask-Limiter.)*
+5. 🟢 **Already Implemented** — Controls must be in place to detect and block automated abuse, including CAPTCHA and rate limiting on sensitive endpoints. *(Flask rate limiting blocks API abuse, and bot protection is managed at the Supabase integration layer.)*
+6. 🟢 **Already Implemented** — Custom validations and limits must be implemented to protect business logic based on known risks identified through threat modelling or past findings. *(Strict range validation rules (SQFT, floors, margins, and percents) protect estimation backend logic from boundary manipulation.)*
+7. ⚪ **Not Applicable** — Sensitive operations must be protected against race conditions and TOCTOU vulnerabilities. *(There are no concurrent inventory deductions or shared wallet transfers where race conditions could result in double-spending.)*
+8. ⚪ **Not Applicable** — Financial transaction amounts and totals must be validated server-side. Client-supplied values must never be trusted for monetary calculations. *(The application does not process payment gateway checkouts, wallet transactions, or direct financial amounts.)*
+9. ⚪ **Not Applicable** — MPIN and PIN requirements for wallet and financial transactions must be enforced server-side and must not be bypassable through response manipulation. *(No wallet features, PINs, or MPIN setups are utilized.)*
+10. ⚪ **Not Applicable** — Wallet and financial operations must be scoped strictly to the authenticated account owner. Cross-account transfers must require explicit server-side authorization. *(No direct transfers or wallet operations are supported.)*
+11. 🟢 **Already Implemented** — OTPs must be single-use only. They must be invalidated immediately upon successful use and rejected if submitted again. *(OTP database rows are deleted immediately inside auth.py upon successful password resets, guaranteeing single-use properties.)*
+12. ⚪ **Not Applicable** — Payment and card verification flows must be validated entirely server-side to prevent amount tampering or verification bypass. *(No payment processing forms exist.)*
+13. ⚪ **Not Applicable** — Subscription and premium access controls must be enforced server-side and must not be unlockable by modifying a client-side response field. *(There are no tier options, paywall views, or premium pricing gates in the application.)*

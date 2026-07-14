@@ -460,10 +460,10 @@ export default function NewProject() {
       } else if (!/^[6-9]\d{9}$/.test(form.customer_mobile.trim())) {
         err.customer_mobile = 'Please enter a valid 10-digit phone number starting with 6-9.';
       }
-      if (form.customer_email && form.customer_email.trim()) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())) {
-          err.customer_email = 'Please enter a valid email address.';
-        }
+      if (!form.customer_email || !form.customer_email.trim()) {
+        err.customer_email = 'Email Address is required.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())) {
+        err.customer_email = 'Please enter a valid email address.';
       }
     }
     if (step === 2 && targetStep > 2) {
@@ -493,10 +493,10 @@ export default function NewProject() {
       } else if (!/^[6-9]\d{9}$/.test(form.customer_mobile.trim())) {
         err.customer_mobile = 'Please enter a valid 10-digit phone number starting with 6-9.';
       }
-      if (form.customer_email && form.customer_email.trim()) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())) {
-          err.customer_email = 'Please enter a valid email address.';
-        }
+      if (!form.customer_email || !form.customer_email.trim()) {
+        err.customer_email = 'Email Address is required.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())) {
+        err.customer_email = 'Please enter a valid email address.';
       }
     }
     if (step === 2) {
@@ -670,24 +670,24 @@ export default function NewProject() {
             <div className="card-body">
               <div className="form-row-2">
                 <div className="form-group">
-                  <label className="form-label">Customer Name</label>
+                  <label className="form-label">Customer Name *</label>
                   <input className="form-control" placeholder="John Doe" value={form.customer_name} onChange={(e) => set('customer_name', e.target.value)} />
                   {errors.customer_name && <span className="error-text">{errors.customer_name}</span>}
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Project Name / Site Name</label>
+                  <label className="form-label">Project Name / Site Name *</label>
                   <input className="form-control" placeholder="Villa Estimate" value={form.project_name} onChange={(e) => set('project_name', e.target.value)} />
                   {errors.project_name && <span className="error-text">{errors.project_name}</span>}
                 </div>
               </div>
               <div className="form-row-2" style={{ marginTop: '16px' }}>
                 <div className="form-group">
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">Phone Number *</label>
                   <input className="form-control" placeholder="9876543210" value={form.customer_mobile} onChange={(e) => set('customer_mobile', e.target.value)} />
                   {errors.customer_mobile && <span className="error-text">{errors.customer_mobile}</span>}
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label">Email Address *</label>
                   <input className="form-control" type="email" placeholder="customer@gmail.com" value={form.customer_email} onChange={(e) => set('customer_email', e.target.value)} />
                   {errors.customer_email && <span className="error-text">{errors.customer_email}</span>}
                 </div>

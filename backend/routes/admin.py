@@ -93,11 +93,14 @@ def list_users():
 def approve_user(user_id):
     """Approve a builder account."""
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
 
         supabase_admin.table('profiles').update(
             {'is_approved': True}
         ).eq('id', user_id).execute()
+
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "APPROVE_USER", request.remote_addr, target_id=user_id, status="SUCCESS")
 
         return jsonify({'success': True, 'message': f'User {user_id} approved.'}), 200
 
@@ -114,11 +117,14 @@ def approve_user(user_id):
 def block_user(user_id):
     """Block (revoke approval of) a builder account."""
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
 
         supabase_admin.table('profiles').update(
             {'is_approved': False}
         ).eq('id', user_id).execute()
+
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "BLOCK_USER", request.remote_addr, target_id=user_id, status="SUCCESS")
 
         return jsonify({'success': True, 'message': f'User {user_id} blocked.'}), 200
 
@@ -140,6 +146,10 @@ def delete_user(user_id):
             return jsonify({'error': 'Cannot delete your own admin account.'}), 400
 
         supabase_admin.auth.admin.delete_user(user_id)
+
+        from services.audit import log_audit_event
+        log_audit_event(current_admin_id, "DELETE_USER", request.remote_addr, target_id=user_id, status="SUCCESS")
+
         return jsonify({'success': True, 'message': f'User {user_id} deleted successfully.'}), 200
 
     except PermissionError as pe:
@@ -199,7 +209,7 @@ def import_rates():
     CSV Columns: city, material_code, rate, vendor
     """
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
         
         if 'file' not in request.files:
             return jsonify({'error': 'No file part in the request.'}), 400
@@ -255,6 +265,9 @@ def import_rates():
             
         supabase_admin.table('material_rates').insert(records_to_insert).execute()
         
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "IMPORT_RATES", request.remote_addr, status="SUCCESS", details=f"Successfully imported {len(records_to_insert)} rates.")
+
         return jsonify({'success': True, 'message': f'Successfully imported {len(records_to_insert)} rates.'}), 200
 
     except PermissionError as pe:
@@ -401,7 +414,7 @@ def update_settings_bulk():
     Body: { settings: { key: value, ... } } or directly { key: value, ... }
     """
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
         data = request.get_json(force=True) or {}
         
         settings_to_update = data.get('settings') if 'settings' in data else data
@@ -414,6 +427,9 @@ def update_settings_bulk():
         if payload:
             supabase_admin.table('system_settings').upsert(payload, on_conflict='key').execute()
             
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "UPDATE_SETTINGS", request.remote_addr, status="SUCCESS", details=f"Bulk updated {len(payload)} keys.")
+
         return jsonify({'success': True, 'message': f"Updated {len(payload)} settings successfully."}), 200
         
     except PermissionError as pe:
@@ -432,7 +448,7 @@ def update_setting(key):
     Body: { value }
     """
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
         data  = request.get_json(force=True) or {}
         value = data.get('value')
 
@@ -444,6 +460,9 @@ def update_setting(key):
             {'key': key, 'value': value},
             on_conflict='key'
         ).execute()
+
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "UPDATE_SETTINGS", request.remote_addr, target_id=key, status="SUCCESS", details=f"Set to: {value}")
 
         return jsonify({'success': True, 'message': f"Setting '{key}' updated."}), 200
 
@@ -618,7 +637,7 @@ def change_user_password(user_id):
     Body: { password }
     """
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
         data = request.get_json(force=True) or {}
         new_password = data.get('password', '')
 
@@ -633,6 +652,9 @@ def change_user_password(user_id):
             user_id,
             attributes={'password': new_password}
         )
+
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "ADMIN_CHANGE_USER_PASSWORD", request.remote_addr, target_id=user_id, status="SUCCESS")
 
         return jsonify({'success': True, 'message': 'Password updated successfully.'}), 200
 
@@ -671,7 +693,7 @@ def list_city_indexes():
 def update_city_index(city):
     """Update or upsert a city cost index."""
     try:
-        is_admin(request)
+        admin_id = is_admin(request)
         data = request.get_json(force=True) or {}
         cost_index = data.get('cost_index')
 
@@ -692,10 +714,12 @@ def update_city_index(city):
             }, on_conflict='city')
             .execute()
         )
+
+        from services.audit import log_audit_event
+        log_audit_event(admin_id, "UPDATE_CITY_INDEX", request.remote_addr, target_id=city, status="SUCCESS", details=f"Index set to: {cost_index}")
+
         return jsonify({'success': True, 'message': f"Cost Index for '{city}' updated to {cost_index}."}), 200
     except PermissionError as pe:
         return jsonify({'error': str(pe)}), 403
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
-
-
